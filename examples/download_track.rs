@@ -34,7 +34,6 @@ async fn main() {
         if !track.downloadable {
             continue;
         }
-        let track = track;
         let path = format!("{}.{}", 
                                track.title.to_string(), 
                                track.original_format.to_string());
