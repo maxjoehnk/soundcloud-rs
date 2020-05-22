@@ -1,6 +1,10 @@
 [package]
 name = "soundcloud"
-authors = ["Mikkel Kroman <mk@uplink.io>", "Max Jöhnk <maxjoehnk@gmail.com>"]
+authors = [
+    "Mikkel Kroman <mk@uplink.io>",
+    "Max Jöhnk <maxjoehnk@gmail.com>",
+    "Aaron Enberg, <pastaaroni@gmail.com>"
+]
 version = "0.4.0"
 license = "MIT/Apache-2.0"
 keywords = ["soundcloud", "http", "api", "client"]
@@ -15,6 +19,8 @@ serde_json = "1.0"
 reqwest = { version = "0.10", features = ["json", "stream"] }
 url = "2.1"
 futures = "0.3"
+tokio = { version = "0.2", features = ["macros", "rt-threaded", "io-util", "io-driver"] }
+tokio-util = { version = "~0.3.0", features = ["compat"] }
 
 [dev-dependencies]
-tokio = { version = "0.2", features = ["macros", "rt-threaded"]}
+tokio = { version = "0.2", features = ["fs"] }
