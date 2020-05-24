@@ -150,35 +150,56 @@ impl Client {
         // Convert the stream into an futures::io::AsyncRead
         // but first we must convert the reqwest::Error into a futures::io::Error
         let download = download.map_err(
-            |e| futures::io::Error::new(futures::io::ErrorKind::Other, e)
-        ).into_async_read();
+            |e| futures::io::Error::new(futures::io::ErrorKind::Other, e))
+            .into_async_read();
         // Convert the futures::io::AsyncRead into a tokio::io::AsyncRead
         let mut download = download.compat();
         let bytes = tokio::io::copy(&mut download, &mut writer).await?;
         Ok(bytes)
     }
 
-    // TODO: fix stream method
-    // /// Starts streaming the track provided in the tracks `stream_url` to the `writer` if the track
-    // /// is streamable via the API.
-    // pub async fn stream<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<usize> {
-    //     use reqwest::header::LOCATION;
-    //
-    //     if !track.streamable || !track.stream_url.is_some() {
-    //         return Err(Error::TrackNotStreamable);
-    //     }
-    //
-    //     let url = self.parse_url(track.stream_url.as_ref().unwrap());
-    //     let mut response = self.http_client.get(url).send().await?;
-    //
-    //     // Follow the redirect just this once.
-    //     if let Some(header) = response.headers().get(LOCATION).cloned() {
-    //         let url = Url::parse(header.to_str()?).unwrap();
-    //         response = self.http_client.get(url).send().await?;
-    //     }
-    //
-    //     futures::io::copy(&mut response, &mut writer).await.map(|n| Ok(n as usize))?
-    // }
+    /// Starts streaming the track provided in the tracks `stream_url` to the `writer`
+    /// if the track is streamable via the API.
+    ///
+    /// Returns Ok if the track was retreived and written successfully, an error otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use soundcloud::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
+    ///   let path = Path::new("hi.mp3");
+    ///   let track = client.tracks().id(263801976).get().await.unwrap();
+    ///   let mut outfile = tokio::fs::File::create(path).await.unwrap();
+    ///   let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
+    ///   assert!(num_bytes > 0);
+    /// }
+    /// ```
+    pub async fn stream<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
+        if !track.streamable || !track.stream_url.is_some() {
+            return Err(Error::TrackNotStreamable);
+        }
+        let url = self.parse_url(track.stream_url.as_ref().unwrap());
+        let mut response = self.http_client.get(url).send().await?;
+        // Follow the redirect just this once.
+        if let Some(header) = response.headers().get(reqwest::header::LOCATION).cloned() {
+            let url = Url::parse(header.to_str()?).unwrap();
+            response = self.http_client.get(url).send().await?;
+        }
+        let stream = response.bytes_stream();
+        // Convert the stream into an futures::io::AsyncRead
+        // but first we must convert the reqwest::Error into a futures::io::Error
+        let stream = stream.map_err(
+            |e| futures::io::Error::new(futures::io::ErrorKind::Other, e))
+            .into_async_read();
+        // Convert the futures::io::AsyncRead into a tokio::io::AsyncRead
+        let mut stream = stream.compat();
+        let bytes = tokio::io::copy(&mut stream, &mut writer).await?;
+        Ok(bytes)
+    }
 
     /// Resolves any soundcloud resource and returns it as a `Url`.
     pub async fn resolve(&self, url: &str) -> Result<Url> {
@@ -369,16 +390,19 @@ mod tests {
         assert!(num_bytes > 0);
         fs::remove_file(path).unwrap();
     }
-    //
-    // #[tokio::test]
-    // async fn test_stream_track() {
-    //     use std::io::BufWriter;
-    //     let client = client();
-    //     let track = client.tracks().id(262681089).get().await.unwrap();
-    //     let mut buffer = BufWriter::new(vec![]);
-    //     let len = client.stream(&track, &mut buffer).await;
-    //
-    //     assert!(len.unwrap() > 0);
-    //     assert!(buffer.get_ref().len() > 0);
-    // }
+
+    #[tokio::test]
+    async fn test_stream_track() {
+        use std::fs;
+        use std::path::Path;
+
+        let client = client();
+        let path = Path::new("stream.mp3");
+        let track = client.tracks().id(263801976).get().await.unwrap();
+        let mut outfile = tokio::fs::File::create(path).await.unwrap();
+        let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
+
+        assert!(num_bytes > 0);
+        fs::remove_file(path).unwrap();
+    }
 }
