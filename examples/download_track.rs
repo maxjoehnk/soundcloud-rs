@@ -22,25 +22,33 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-extern crate soundcloud;
+use std::fs::File;
+
+use futures::io::AllowStdIo;
 
 #[tokio::main]
-async fn main() {
-    let soundcloud_client_id = std::env::var("SOUNDCLOUD_CLIENT_ID")
-        .expect("SOUNDCLOUD_CLIENT_ID");
+async fn main()-> Result<(), Box<dyn std::error::Error>> {
+    let soundcloud_client_id = env!("SOUNDCLOUD_CLIENT_ID");
     let client = soundcloud::Client::new(&soundcloud_client_id);
-    let tracks = client.tracks().query(Some("montebooker")).get().await.unwrap().unwrap();
+    let tracks = client.tracks()
+        .query(Some("montebooker"))
+        .get()
+        .await?
+        .unwrap();
+
     for track in &tracks {
         if !track.downloadable {
             continue;
         }
-        let path = format!("{}.{}", 
-                               track.title.to_string(), 
-                               track.original_format.to_string());
-        let mut outfile = tokio::fs::File::create(path).await.unwrap();
-        let result = client.download(&track, &mut outfile).await;
-        if result.unwrap() > 0 {
+        let track_title = track.title.to_string()
+            .replace(&['\"', '.', '\'', '\\', '/', '?', '*'][..], "");
+        let path = format!("{}.{}", track_title, track.original_format.to_string());
+        let mut outfile = AllowStdIo::new(File::create(&path)?);
+
+        if let Some(url) = &track.download_url {
+            client.read_url(url, &mut outfile).await?;
             break;
         }
     }
+    Ok(())
 }

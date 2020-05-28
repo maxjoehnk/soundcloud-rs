@@ -7,13 +7,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-extern crate tokio;
-
 use std::borrow::Borrow;
 
 use futures::stream::TryStreamExt;
-use tokio::io::AsyncWrite;
-use tokio_util::compat::FuturesAsyncReadCompatExt;
+use futures::io::AsyncWrite;
 use url::Url;
 
 use crate::error::{Error, Result};
@@ -110,58 +107,11 @@ impl Client {
         response
     }
 
-    /// Starts downloading the track provided in the tracks `download_url` to the `writer` 
-    /// if the track is downloadable via the API.
-    ///
-    /// Returns Ok if the track was retreived and written successfully, an error otherwise.
-    ///
-    /// Note:
-    ///   futures::io::AsyncRead is not compatible with tokio::io::AsyncRead.
-    ///   and hence the need for a compatibility layer between tokio and futures
-    ///   which is in the tokio-util crate
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use soundcloud::Client;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
-    ///   let path = Path::new("hi.mp3");
-    ///   let track = client.tracks().id(263801976).get().await.unwrap();
-    ///   let mut outfile = tokio::fs::File::create(path).await.unwrap();
-    ///   let num_bytes = client.download(&track, &mut outfile).await.unwrap();
-    ///   assert!(num_bytes > 0);
-    /// }
-    /// ```
-    pub async fn download<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
-        if !track.downloadable || !track.download_url.is_some() {
-            return Err(Error::TrackNotDownloadable);
-        }
-        let url = self.parse_url(track.download_url.as_ref().unwrap());
-        let mut response = self.http_client.get(url).send().await?;
-        // Follow the redirect just this once.
-        if let Some(header) = response.headers().get(reqwest::header::LOCATION).cloned() {
-            let url = Url::parse(header.to_str()?).unwrap();
-            response = self.http_client.get(url).send().await?;
-        }
-        let download = response.bytes_stream();
-        // Convert the stream into an futures::io::AsyncRead
-        // but first we must convert the reqwest::Error into a futures::io::Error
-        let download = download.map_err(
-            |e| futures::io::Error::new(futures::io::ErrorKind::Other, e))
-            .into_async_read();
-        // Convert the futures::io::AsyncRead into a tokio::io::AsyncRead
-        let mut download = download.compat();
-        let bytes = tokio::io::copy(&mut download, &mut writer).await?;
-        Ok(bytes)
-    }
-
-    /// Starts streaming the track provided in the tracks `stream_url` to the `writer`
+    /// Copies the data provided from reading in the `url` to the `writer`
     /// if the track is streamable via the API.
     ///
-    /// Returns Ok if the track was retreived and written successfully, an error otherwise.
+    /// Returns number of bytes written if the resource's data was copied successfully, 
+    /// an error otherwise.
     ///
     /// # Examples
     ///
@@ -171,18 +121,15 @@ impl Client {
     /// #[tokio::main]
     /// async fn main() {
     ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
-    ///   let path = Path::new("hi.mp3");
+    ///   let path = format!("hi.mp3");
     ///   let track = client.tracks().id(263801976).get().await.unwrap();
-    ///   let mut outfile = tokio::fs::File::create(path).await.unwrap();
+    ///   let mut outfile = AllowStdIo::new(File::create(&path)?);
     ///   let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
     ///   assert!(num_bytes > 0);
     /// }
     /// ```
-    pub async fn stream<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
-        if !track.streamable || !track.stream_url.is_some() {
-            return Err(Error::TrackNotStreamable);
-        }
-        let url = self.parse_url(track.stream_url.as_ref().unwrap());
+    pub async fn read_url<W: AsyncWrite + Unpin>(&self, url: &str, mut writer: W) -> Result<u64> {
+        let url = self.parse_url(url);
         let mut response = self.http_client.get(url).send().await?;
         // Follow the redirect just this once.
         if let Some(header) = response.headers().get(reqwest::header::LOCATION).cloned() {
@@ -190,15 +137,14 @@ impl Client {
             response = self.http_client.get(url).send().await?;
         }
         let stream = response.bytes_stream();
-        // Convert the stream into an futures::io::AsyncRead
-        // but first we must convert the reqwest::Error into a futures::io::Error
-        let stream = stream.map_err(
-            |e| futures::io::Error::new(futures::io::ErrorKind::Other, e))
-            .into_async_read();
-        // Convert the futures::io::AsyncRead into a tokio::io::AsyncRead
-        let mut stream = stream.compat();
-        let bytes = tokio::io::copy(&mut stream, &mut writer).await?;
-        Ok(bytes)
+        // convert the reqwest::Error into a futures::io::Error
+        let stream = stream.map_err(|e|
+            futures::io::Error::new(futures::io::ErrorKind::Other, e)
+        ).into_async_read();
+
+        let num_bytes = futures::io::copy(stream, &mut writer).await?;
+
+        Ok(num_bytes)
     }
 
     /// Resolves any soundcloud resource and returns it as a `Url`.
@@ -377,32 +323,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_download_track() {
-        use std::fs;
-        use std::path::Path;
+    async fn test_read_url() {
+        use std::fs::{File, remove_file};
+        use futures::io::AllowStdIo;
 
         let client = client();
-        let path = Path::new("hi.mp3");
+        let path = format!("hi.mp3");
         let track = client.tracks().id(263801976).get().await.unwrap();
-        let mut outfile = tokio::fs::File::create(path).await.unwrap();
-        let num_bytes = client.download(&track, &mut outfile).await.unwrap();
+        let mut outfile = AllowStdIo::new(File::create(&path).unwrap());
 
+        let mut num_bytes = 0;
+        if let Some(url) = &track.download_url {
+            num_bytes = client.read_url(url, &mut outfile).await.unwrap();
+        }
         assert!(num_bytes > 0);
-        fs::remove_file(path).unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_stream_track() {
-        use std::fs;
-        use std::path::Path;
-
-        let client = client();
-        let path = Path::new("stream.mp3");
-        let track = client.tracks().id(263801976).get().await.unwrap();
-        let mut outfile = tokio::fs::File::create(path).await.unwrap();
-        let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
-
-        assert!(num_bytes > 0);
-        fs::remove_file(path).unwrap();
+        remove_file(path);
     }
 }
