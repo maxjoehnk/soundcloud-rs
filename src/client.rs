@@ -110,23 +110,19 @@ impl Client {
     /// Starts streaming the track provided in the tracks `stream_url` to the `writer` if the track
     /// is streamable via the API.
     pub async fn stream<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
-        if let Some(url) = &track.stream_url {
-            self.read_url(&url, &mut writer).await
+        if !track.streamable {
+            return Err(Error::TrackNotStreamable);
         }
-        else {
-            Err(Error::TrackNotStreamable)
-        }
+        return self.read_url(&track.stream_url.as_ref().unwrap(), &mut writer).await;
     }
 
     /// Starts downloading the track provided in the tracks `download_url` to the `writer` if the track
     /// is downloadable via the API.
     pub async fn download<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
-        if let Some(url) = &track.download_url {
-            self.read_url(&url, &mut writer).await
+        if !track.downloadable {
+            return Err(Error::TrackNotDownloadable);
         }
-        else {
-            Err(Error::TrackNotDownloadable)
-        }
+        return self.read_url(&track.download_url.as_ref().unwrap(), &mut writer).await;
     }
 
     /// Copies the data provided from reading in the `url` to the `writer`
