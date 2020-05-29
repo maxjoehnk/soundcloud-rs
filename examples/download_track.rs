@@ -37,16 +37,13 @@ async fn main()-> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     for track in &tracks {
-        if !track.downloadable {
-            continue;
-        }
         let track_title = track.title.to_string()
             .replace(&['\"', '.', '\'', '\\', '/', '?', '*'][..], "");
         let path = format!("{}.{}", track_title, track.original_format.to_string());
         let mut outfile = AllowStdIo::new(File::create(&path)?);
 
-        if let Some(url) = &track.download_url {
-            client.read_url(url, &mut outfile).await?;
+        let result = client.download(track, &mut outfile).await?;
+        if result > 0 {
             break;
         }
     }
