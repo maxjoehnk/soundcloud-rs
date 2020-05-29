@@ -150,7 +150,7 @@ impl Client {
     ///   assert!(num_bytes > 0);
     /// }
     /// ```
-    pub async fn read_url<W: AsyncWrite + Unpin>(&self, url: &str, mut writer: W) -> Result<u64> {
+    async fn read_url<W: AsyncWrite + Unpin>(&self, url: &str, mut writer: W) -> Result<u64> {
         let url = self.parse_url(url);
         let mut response = self.http_client.get(url).send().await?;
         // Follow the redirect just this once.
