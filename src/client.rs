@@ -107,8 +107,27 @@ impl Client {
         response
     }
 
-    /// Starts streaming the track provided in the tracks `stream_url` to the `writer` if the track
+    /// Starts streaming the track provided in the track's `stream_url` to the `writer` if the track
     /// is streamable via the API.
+    ///
+    /// Returns:
+    ///     Number of bytes written if the track was streamed successfully, an error otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use soundcloud::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
+    ///   let path = Path::new("hi.mp3");
+    ///   let track = client.tracks().id(263801976).get().await.unwrap();
+    ///   let mut outfile = futures::io::AllowStdIo(std::fs::File::create(path).await.unwrap());
+    ///   let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
+    ///   assert!(num_bytes > 0);
+    /// }
+    /// ```
     pub async fn stream<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
         if !track.streamable {
             return Err(Error::TrackNotStreamable);
@@ -118,6 +137,24 @@ impl Client {
 
     /// Starts downloading the track provided in the tracks `download_url` to the `writer` if the track
     /// is downloadable via the API.
+    ///
+    /// Returns:
+    ///     Number of bytes written if the track was downloaded successfully, an error otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use soundcloud::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
+    ///   let path = Path::new("hi.mp3");
+    ///   let track = client.tracks().id(263801976).get().await.unwrap();
+    ///   let mut outfile = futures::io::AllowStdIo(std::fs::File::create(path).await.unwrap());
+    ///   let num_bytes = client.download(&track, &mut outfile).await.unwrap();
+    ///   assert!(num_bytes > 0);
+    /// }
     pub async fn download<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
         if !track.downloadable {
             return Err(Error::TrackNotDownloadable);
@@ -128,23 +165,10 @@ impl Client {
     /// Copies the data provided from reading in the `url` to the `writer`
     /// if the track is streamable via the API.
     ///
-    /// Returns number of bytes written if the resource's data was copied successfully, 
-    /// an error otherwise.
+    /// Returns:
+    ///     number of bytes written if the resource's data was copied successfully, 
+    ///     an error otherwise.
     ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use soundcloud::Client;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
-    ///   let path = format!("hi.mp3");
-    ///   let track = client.tracks().id(263801976).get().await.unwrap();
-    ///   let mut outfile = AllowStdIo::new(File::create(&path)?);
-    ///   let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
-    ///   assert!(num_bytes > 0);
-    /// }
     /// ```
     async fn read_url<W: AsyncWrite + Unpin>(&self, url: &str, mut writer: W) -> Result<u64> {
         let url = self.parse_url(url);
@@ -341,7 +365,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_read_url() {
+    async fn test_download() {
         use std::fs::{File, remove_file};
         use futures::io::AllowStdIo;
 
@@ -350,11 +374,23 @@ mod tests {
         let track = client.tracks().id(263801976).get().await.unwrap();
         let mut outfile = AllowStdIo::new(File::create(&path).unwrap());
 
-        let mut num_bytes = 0;
-        if let Some(url) = &track.download_url {
-            num_bytes = client.read_url(url, &mut outfile).await.unwrap();
-        }
+        let num_bytes = client.download(&track, &mut outfile).await.unwrap();
         assert!(num_bytes > 0);
-        remove_file(path);
+        let _ = remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn test_stream() {
+        use std::fs::{File, remove_file};
+        use futures::io::AllowStdIo;
+
+        let client = client();
+        let path = format!("test.mp3");
+        let track = client.tracks().id(263801976).get().await.unwrap();
+        let mut outfile = AllowStdIo::new(File::create(&path).unwrap());
+
+        let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
+        assert!(num_bytes > 0);
+        let _ = remove_file(path);
     }
 }
