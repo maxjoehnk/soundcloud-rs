@@ -22,29 +22,28 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use std::fs::File;
-
-use futures::io::AllowStdIo;
+use tokio::fs::File;
+use tokio_util::compat::Tokio02AsyncWriteCompatExt;
 
 #[tokio::main]
 async fn main()-> Result<(), Box<dyn std::error::Error>> {
     let soundcloud_client_id = env!("SOUNDCLOUD_CLIENT_ID");
     let client = soundcloud::Client::new(&soundcloud_client_id);
-    let tracks = client.tracks()
-        .query(Some("montebooker"))
-        .get()
-        .await?
-        .unwrap();
+    let tracks = client.tracks().query(Some("montebooker")).get().await?.unwrap();
 
     for track in &tracks {
+        if !track.downloadable {
+            continue;
+        }
         let track_title = track.title.to_string()
             .replace(&['\"', '.', '\'', '\\', '/', '?', '*'][..], "");
         let path = format!("{}.{}", track_title, track.original_format.to_string());
-        let mut outfile = AllowStdIo::new(File::create(&path)?);
+        let mut outfile = File::create(&path).await?.compat_write();
 
-        let result = client.download(track, &mut outfile).await?;
-        if result > 0 {
-            break;
+        if let Ok(num_bytes) = client.download(track, &mut outfile).await {
+            if num_bytes > 0 {
+                break;
+            }
         }
     }
     Ok(())

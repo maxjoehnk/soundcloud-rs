@@ -21,4 +21,5 @@ url = "2.1"
 futures = "0.3"
 
 [dev-dependencies]
-tokio = { version = "0.2", features = ["macros", "rt-threaded"] }
+tokio = { version = "0.2", features = ["macros", "rt-threaded", "fs"] }
+tokio-util = { version = "~0.3.0", features = ["compat"] }

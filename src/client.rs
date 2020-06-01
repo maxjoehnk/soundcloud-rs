@@ -117,13 +117,15 @@ impl Client {
     ///
     /// ```no_run
     /// use soundcloud::Client;
+    /// use tokio::fs::File;
+    /// use tokio_util::compat::Tokio02AsyncWriteCompatExt;
     ///
     /// #[tokio::main]
     /// async fn main() {
     ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
     ///   let path = Path::new("hi.mp3");
     ///   let track = client.tracks().id(263801976).get().await.unwrap();
-    ///   let mut outfile = futures::io::AllowStdIo(std::fs::File::create(path).await.unwrap());
+    ///   let mut outfile = File::create(path).await.unwrap().compat_write();
     ///   let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
     ///   assert!(num_bytes > 0);
     /// }
@@ -145,14 +147,16 @@ impl Client {
     ///
     /// ```no_run
     /// use soundcloud::Client;
+    /// use tokio::fs::File;
+    /// use tokio_util::compat::Tokio02AsyncWriteCompatExt;
     ///
     /// #[tokio::main]
     /// async fn main() {
     ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
     ///   let path = Path::new("hi.mp3");
     ///   let track = client.tracks().id(263801976).get().await.unwrap();
-    ///   let mut outfile = futures::io::AllowStdIo(std::fs::File::create(path).await.unwrap());
-    ///   let num_bytes = client.download(&track, &mut outfile).await.unwrap();
+    ///   let mut outfile = File::create(path).await.unwrap().compat_write();
+    ///   let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
     ///   assert!(num_bytes > 0);
     /// }
     pub async fn download<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
@@ -366,13 +370,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_download() {
-        use std::fs::{File, remove_file};
-        use futures::io::AllowStdIo;
+        use tokio::fs::{File, remove_file};
+        use tokio_util::compat::Tokio02AsyncWriteCompatExt;
 
         let client = client();
         let path = format!("hi.mp3");
         let track = client.tracks().id(263801976).get().await.unwrap();
-        let mut outfile = AllowStdIo::new(File::create(&path).unwrap());
+        let mut outfile = File::create(&path).await.unwrap().compat_write();
 
         let num_bytes = client.download(&track, &mut outfile).await.unwrap();
         assert!(num_bytes > 0);
@@ -381,13 +385,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_stream() {
-        use std::fs::{File, remove_file};
-        use futures::io::AllowStdIo;
+        use tokio::fs::{File, remove_file};
+        use tokio_util::compat::Tokio02AsyncWriteCompatExt;
 
         let client = client();
         let path = format!("test.mp3");
         let track = client.tracks().id(263801976).get().await.unwrap();
-        let mut outfile = AllowStdIo::new(File::create(&path).unwrap());
+        let mut outfile = File::create(&path).await.unwrap().compat_write();
 
         let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
         assert!(num_bytes > 0);
