@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::client::Client;
 use crate::error::Result;
@@ -91,18 +90,18 @@ impl<'a> UserRequestBuilder<'a> {
     }
 
     /// Returns a builder for a single track.
-    pub async fn permalink(&self, permalink: &str) -> SingleUserRequestBuilder<'a> {
+    pub async fn permalink(&self, permalink: &str) -> Result<SingleUserRequestBuilder<'a>> {
         let permalink_url = &format!("https://soundcloud.com/{}", permalink);
-        let resource_url = self.client.resolve(permalink_url).await.unwrap();
+        let resource_url = self.client.resolve(permalink_url).await?;
         let id = resource_url.path_segments()
             .map(|c| {
                 c.collect::<Vec<_>>()
             }).unwrap().pop().unwrap();
         let id = usize::from_str_radix(id, 10).unwrap();
-        SingleUserRequestBuilder {
+        Ok(SingleUserRequestBuilder {
             client: self.client,
             id,
-        }
+        })
     }
 }
 
@@ -131,11 +130,6 @@ impl<'a> SingleUserRequestBuilder<'a> {
         else {
             Ok(Some(tracks))
         }
-    }
-
-    pub fn resource_url(&self) -> Url {
-        let url = &format!("https://{}/users/{}", super::API_HOST, self.id);
-        Url::parse(url).unwrap()
     }
 
     /// Retrieve a SoundCloud user

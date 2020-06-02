@@ -105,8 +105,8 @@ impl Client {
             .get(url)
             .headers(headers)
             .send()
-            .await;
-        response
+            .await?;
+        response.error_for_status()
     }
 
     /// Starts streaming the track provided in the track's `stream_url` to the `writer` if the track
@@ -449,14 +449,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_from_permalink() {
-        let user = client().users().permalink("west1ne").await.get().await.unwrap();
+        let user = client().users().permalink("west1ne").await.unwrap().get().await.unwrap();
 
         assert_eq!(user.id, 7466893);
     }
 
     #[tokio::test]
     async fn test_get_user_tracks_from_permalink() {
-        let tracks = client().users().permalink("west1ne").await.tracks().await;
+        let tracks = client().users().permalink("west1ne").await.unwrap().tracks().await;
 
         assert!(tracks.unwrap().is_some());
     }
