@@ -134,11 +134,11 @@ pub struct Track {
     /// Number of comments.
     pub comment_count: Option<u64>,
     /// Number of downloads.
-    pub download_count: u64,
+    pub download_count: Option<u64>,
     /// Number of playbacks.
-    pub playback_count: u64,
+    pub playback_count: Option<u64>,
     /// Number of times favorited.
-    pub favoritings_count: u64,
+    pub favoritings_count: Option<u64>,
     /// Original upload format.
     pub original_format: String,
     /// Original upload size.
