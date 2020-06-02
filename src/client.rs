@@ -350,7 +350,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_my_playlists() {
-        let mut client = authenticated_client();
+        let client = authenticated_client();
         assert!(client.my_playlists().await.unwrap().len() > 0);
     }
 
@@ -409,7 +409,7 @@ mod tests {
 
         let num_bytes = client.download(&track, &mut outfile).await.unwrap();
         assert!(num_bytes > 0);
-        let _ = remove_file(path);
+        let _ = remove_file(path).await;
     }
 
     #[tokio::test]
@@ -424,7 +424,7 @@ mod tests {
 
         let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
         assert!(num_bytes > 0);
-        let _ = remove_file(path);
+        let _ = remove_file(path).await;
     }
 
     #[tokio::test]
