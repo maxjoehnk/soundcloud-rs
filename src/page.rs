@@ -11,10 +11,10 @@ pub struct Page<T> {
     /// The collection
     pub collection: Vec<T>,
     /// The url to the next page of results
-    pub next_href: Option<String>
+    pub next_href: Option<String>,
 }
 
-impl <T> Page<T> {
+impl<T> Page<T> {
     pub fn next_query(&self) -> Result<Option<HashMap<String, String>>> {
         if self.next_href.is_none() {
             return Ok(None);
@@ -24,7 +24,7 @@ impl <T> Page<T> {
 
         match next_query.is_empty() {
             true => Ok(None),
-            false => Ok(Some(next_query))
+            false => Ok(Some(next_query)),
         }
     }
 

@@ -12,8 +12,8 @@ use std::collections::HashMap;
 
 use futures::io::AsyncWrite;
 use futures::stream::TryStreamExt;
-use url::Url;
 use serde::de::DeserializeOwned;
+use url::Url;
 
 use crate::error::{Error, Result};
 use crate::page::Page;
@@ -67,7 +67,8 @@ impl Client {
     ///     A list of all items accumulated in each collection, or None if
     ///     there are no results or an error if one occured.
     pub async fn get_collections<T>(&self, path: &str) -> Result<Option<Vec<T>>>
-        where T: DeserializeOwned + Clone
+    where
+        T: DeserializeOwned + Clone,
     {
         let mut collections: Vec<T> = Vec::new();
         let mut params = HashMap::new();
@@ -83,9 +84,15 @@ impl Client {
             collections.extend(page.collection.to_owned());
 
             match page.next_query() {
-                Ok(Some(query)) => { params = query; },
-                Ok(None) => { return Ok(Some(collections)); },
-                Err(err) => { return Err(err); }
+                Ok(Some(query)) => {
+                    params = query;
+                }
+                Ok(None) => {
+                    return Ok(Some(collections));
+                }
+                Err(err) => {
+                    return Err(err);
+                }
             }
         }
     }
@@ -113,11 +120,7 @@ impl Client {
     ///   assert!(!buffer.is_empty());
     ///}
     /// ```
-    pub async fn get<I, K, V>(
-        &self,
-        path: &str,
-        params: Option<I>
-    ) -> Result<reqwest::Response>
+    pub async fn get<I, K, V>(&self, path: &str, params: Option<I>) -> Result<reqwest::Response>
     where
         I: IntoIterator,
         I::Item: Borrow<(K, V)>,
@@ -144,7 +147,13 @@ impl Client {
             );
         }
 
-        let response = self.http_client.get(url).headers(headers).send().await?.error_for_status()?;
+        let response = self
+            .http_client
+            .get(url)
+            .headers(headers)
+            .send()
+            .await?
+            .error_for_status()?;
         Ok(response)
     }
 
@@ -486,8 +495,13 @@ mod tests {
         let path = "/users/7466893/tracks";
         let no_params: Option<&[(&str, &str)]> = None;
         let all_tracks: Vec<Track> = client().get_collections(path).await.unwrap().unwrap();
-        let some_tracks: Vec<Track> = client().get(path, no_params.clone()).await.unwrap()
-            .json().await.unwrap();
+        let some_tracks: Vec<Track> = client()
+            .get(path, no_params.clone())
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
 
         assert!(some_tracks.len() < all_tracks.len());
     }
