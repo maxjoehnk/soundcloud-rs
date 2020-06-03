@@ -177,8 +177,8 @@ impl<'a> SingleTrackRequestBuilder<'a> {
     /// Constructs a new track request.
     pub fn new(client: &'a Client, id: usize) -> SingleTrackRequestBuilder {
         SingleTrackRequestBuilder {
-            client: client,
-            id: id,
+            client,
+            id,
         }
     }
 
@@ -192,9 +192,7 @@ impl<'a> SingleTrackRequestBuilder<'a> {
     }
 
     pub fn request_url(&self) -> Url {
-        let url = Url::parse(&format!("https://{}/tracks/{}", super::API_HOST, self.id)).unwrap();
-
-        url
+        Url::parse(&format!("https://{}/tracks/{}", super::API_HOST, self.id)).unwrap()
     }
 }
 
@@ -203,7 +201,7 @@ impl<'a> TrackRequestBuilder<'a> {
     /// Creates a new track request builder, with no set parameters.
     pub fn new(client: &'a Client) -> TrackRequestBuilder {
         TrackRequestBuilder {
-            client: client,
+            client,
             query: None,
             tags: None,
             filter: None,
@@ -264,30 +262,26 @@ impl<'a> TrackRequestBuilder<'a> {
     pub fn id(&'a mut self, id: usize) -> SingleTrackRequestBuilder {
         SingleTrackRequestBuilder {
             client: &self.client,
-            id: id,
+            id,
         }
     }
 
     /// Performs the request and returns a list of tracks if there are any results, None otherwise,
     /// or an error if one occurred.
-    pub async fn get(&mut self) -> Result<Option<Vec<Track>>> {
+    pub async fn get(&mut self) -> Result<Vec<Track>> {
         use serde_json::Value;
 
         let response = self.client.get("/tracks", Some(self.request_params())).await?;
         let track_list: Value = response.json().await?;
 
         if let Some(track_list) = track_list.as_array() {
-            if track_list.is_empty() {
-                return Ok(None);
-            } else {
-                let tracks: Vec<Track> = track_list
-                    .iter().map(|t| serde_json::from_value::<Track>(t.clone()).unwrap()).collect();
+            let tracks: Vec<Track> = track_list
+                .iter().map(|t| serde_json::from_value::<Track>(t.clone()).unwrap()).collect();
 
-                return Ok(Some(tracks));
-            }
+            Ok(tracks)
+        }else {
+            Err(Error::ApiError("expected response to be an array".to_owned()))
         }
-
-        return Err(Error::ApiError("expected response to be an array".to_owned()));
     }
 
     fn request_params(&self) -> Vec<(&str, String)> {

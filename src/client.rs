@@ -239,7 +239,7 @@ impl Client {
     ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
     ///   let tracks = client.tracks().genres(Some(["HipHop"])).get().await;
     ///
-    ///   assert!(tracks.unwrap().expect("no tracks found").len() > 0);
+    ///   assert!(tracks.unwrap().len() > 0);
     /// }
     /// ```
     pub fn tracks(&self) -> TrackRequestBuilder {
@@ -277,7 +277,7 @@ impl Client {
     ///   let client = Client::new(env!("SOUNDCLOUD_CLIENT_ID"));
     ///   let playlists = client.playlists().query("Monstercat").get().await;
     ///
-    ///   assert!(playlists.unwrap().expect("no playlists found").len() > 0);
+    ///   assert!(playlists.unwrap().len() > 0);
     /// }
     /// ```
     pub fn playlists(&self) -> PlaylistRequestBuilder {
@@ -359,7 +359,7 @@ mod tests {
     async fn test_get_tracks() {
         let result = client().tracks().query(Some("monstercat")).get().await;
 
-        assert!(result.unwrap().is_some());
+        assert!(result.unwrap().len() > 0);
     }
 
     #[tokio::test]
@@ -373,7 +373,7 @@ mod tests {
     async fn test_get_playlists() {
         let result = client().playlists().query("monstercat").get().await;
 
-        assert!(result.unwrap().is_some());
+        assert!(result.unwrap().len() > 0);
     }
 
     #[tokio::test]
@@ -422,14 +422,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_tracks() {
-        let tracks = client().user(8553751).tracks().await.unwrap().unwrap();
+        let tracks = client().user(8553751).tracks().await.unwrap();
 
         assert!(tracks.len() > 0);
     }
 
     #[tokio::test]
     async fn test_get_user_playlists() {
-        let playlists = client().user(8553751).playlists().await.unwrap().unwrap();
+        let playlists = client().user(8553751).playlists().await.unwrap();
 
         assert!(playlists.len() > 0);
     }
@@ -445,6 +445,6 @@ mod tests {
     async fn test_get_user_tracks_from_permalink() {
         let tracks = client().users().permalink("west1ne").await.unwrap().tracks().await;
 
-        assert!(tracks.unwrap().is_some());
+        assert!(tracks.unwrap().len() > 0);
     }
 }

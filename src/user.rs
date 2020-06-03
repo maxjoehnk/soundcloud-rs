@@ -118,37 +118,27 @@ impl<'a> SingleUserRequestBuilder<'a> {
     /// Retrieve all tracks uploaded by the artist
     ///
     /// Returns:
-    ///     a list of tracks if there are any results, None otherwise,
-    ///     or an error if one occurred.
-    pub async fn tracks(&mut self) -> Result<Option<Vec<Track>>> {
+    ///     a list of tracks or an error if one occurred.
+    pub async fn tracks(&mut self) -> Result<Vec<Track>> {
         let path = &format!("/users/{}/tracks", self.id.to_string());
         let no_params: Option<&[(&str, &str)]> = None;
         let response = self.client.get(&path, no_params).await?;
         let tracks: Vec<Track> = response.json().await?;
-        if tracks.is_empty() {
-            Ok(None)
-        }
-        else {
-            Ok(Some(tracks))
-        }
+
+        Ok(tracks)
     }
 
     /// Retrieve all playlists uploaded by the user
     ///
     /// Returns:
-    ///     a list of playlists if there are any results, None otherwise,
-    ///     or an error if one occurred.
-    pub async fn playlists(&mut self) -> Result<Option<Vec<Playlist>>> {
+    ///     a list of playlists or an error if one occurred.
+    pub async fn playlists(&mut self) -> Result<Vec<Playlist>> {
         let path = format!("/users/{}/playlists", self.id.to_string());
         let no_params: Option<&[(&str, &str)]> = None;
         let response = self.client.get(&path, no_params).await?;
         let playlists: Vec<Playlist> = response.json().await?;
-        if playlists.is_empty() {
-            Ok(None)
-        }
-        else {
-            Ok(Some(playlists))
-        }
+
+        Ok(playlists)
     }
 
     /// Retrieve a SoundCloud user

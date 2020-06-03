@@ -29,7 +29,7 @@ use tokio_util::compat::Tokio02AsyncWriteCompatExt;
 async fn main()-> Result<(), Box<dyn std::error::Error>> {
     let soundcloud_client_id = env!("SOUNDCLOUD_CLIENT_ID");
     let client = soundcloud::Client::new(&soundcloud_client_id);
-    let tracks = client.tracks().query(Some("montebooker")).get().await?.unwrap();
+    let tracks = client.tracks().query(Some("montebooker")).get().await?;
 
     for track in &tracks {
         if !track.downloadable {

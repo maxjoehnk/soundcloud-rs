@@ -55,8 +55,8 @@ impl<'a> SinglePlaylistRequestBuilder<'a> {
     /// Constructs a new track request.
     pub fn new(client: &'a Client, id: usize) -> SinglePlaylistRequestBuilder {
         SinglePlaylistRequestBuilder {
-            client: client,
-            id: id,
+            client,
+            id,
         }
     }
 
@@ -70,9 +70,7 @@ impl<'a> SinglePlaylistRequestBuilder<'a> {
     }
 
     pub fn request_url(&self) -> Url {
-        let url = Url::parse(&format!("https://{}/playlists/{}", super::API_HOST, self.id)).unwrap();
-
-        url
+        Url::parse(&format!("https://{}/playlists/{}", super::API_HOST, self.id)).unwrap()
     }
 }
 
@@ -80,7 +78,7 @@ impl<'a> PlaylistRequestBuilder<'a> {
     /// Creates a new playlist request builder, with no set parameters.
     pub fn new(client: &'a Client) -> Self {
         PlaylistRequestBuilder {
-            client: client,
+            client,
             query: None,
         }
     }
@@ -96,30 +94,25 @@ impl<'a> PlaylistRequestBuilder<'a> {
     pub fn id(&'a mut self, id: usize) -> SinglePlaylistRequestBuilder {
         SinglePlaylistRequestBuilder {
             client: &self.client,
-            id: id,
+            id,
         }
     }
 
-    /// Performs the request and returns a list of playlists if there are any results, None otherwise,
-    /// or an error if one occurred.
-    pub async fn get(&mut self) -> Result<Option<Vec<Playlist>>> {
+    /// Performs the request and returns a list of playlists or an error if one occurred.
+    pub async fn get(&mut self) -> Result<Vec<Playlist>> {
         use serde_json::Value;
 
         let response = self.client.get("/playlists", Some(self.request_params())).await?;
         let playlist_list: Value = response.json().await?;
 
         if let Some(playlist_list) = playlist_list.as_array() {
-            if playlist_list.is_empty() {
-                return Ok(None);
-            } else {
-                let playlists: Vec<Playlist> = playlist_list
-                    .iter().map(|p| serde_json::from_value::<Playlist>(p.clone()).unwrap()).collect();
+            let playlists: Vec<Playlist> = playlist_list
+                .iter().map(|p| serde_json::from_value::<Playlist>(p.clone()).unwrap()).collect();
 
-                return Ok(Some(playlists));
-            }
+            Ok(playlists)
+        }else {
+            Err(Error::ApiError("expected response to be an array".to_owned()))
         }
-
-        return Err(Error::ApiError("expected response to be an array".to_owned()));
     }
 
     fn request_params(&self) -> Vec<(&str, String)> {
