@@ -8,12 +8,15 @@
 // except according to those terms.
 
 use std::borrow::Borrow;
+use std::collections::HashMap;
 
 use futures::stream::TryStreamExt;
 use futures::io::AsyncWrite;
 use url::Url;
+use serde::de::DeserializeOwned;
 
 use crate::error::{Error, Result};
+use crate::page::Page;
 use crate::playlist::{Playlist, PlaylistRequestBuilder, SinglePlaylistRequestBuilder};
 use crate::track::{SingleTrackRequestBuilder, Track, TrackRequestBuilder};
 use crate::user::{SingleUserRequestBuilder, UserRequestBuilder};
@@ -56,6 +59,36 @@ impl Client {
         self.auth_token = Some(token);
     }
 
+    /// Collects all results of an endpoint that is paginated by
+    /// following next_href in the response until exhausted.
+    ///
+    /// Returns:
+    ///     A list of all items accumulated in each collection, or None if
+    ///     there are no results or an error if one occured.
+    pub async fn get_collections<T>(&self, path: &str) -> Result<Option<Vec<T>>>
+        where T: DeserializeOwned + Clone
+    {
+        let mut collections: Vec<T> = Vec::new();
+        let mut params = HashMap::new();
+        params.insert("linked_partitioning".to_owned(), "1".to_owned());
+        params.insert("limit".to_owned(), "200".to_owned());
+
+        loop {
+            let page: Page<T> = self.get(path, Some(params.clone())).await?.json().await?;
+
+            if page.is_empty() && collections.is_empty() {
+                return Ok(None);
+            }
+            collections.extend(page.collection.to_owned());
+
+            match page.next_query() {
+                Ok(Some(query)) => { params = query; },
+                Ok(None) => { return Ok(Some(collections)); },
+                Err(err) => { return Err(err); }
+            }
+        }
+    }
+
     /// Creates and sends a HTTP GET request to the API endpoint.
     ///
     /// A `client_id` parameter will automatically be added to the request.
@@ -79,10 +112,10 @@ impl Client {
     ///   assert!(!buffer.is_empty());
     ///}
     /// ```
-    pub async fn get<I, K, V>(&self, path: &str, params: Option<I>) -> reqwest::Result<reqwest::Response>
+    pub async fn get<I, K, V>(&self, path: &str, params: Option<I>) -> Result<reqwest::Response>
         where I: IntoIterator, I::Item: Borrow<(K, V)>, K: AsRef<str>, V: AsRef<str> 
     {
-        let mut url = Url::parse(&format!("https://{}{}", super::API_HOST, path)).unwrap();
+        let mut url = Url::parse(&format!("https://{}{}", super::API_HOST, path))?;
 
         {
             let mut query_pairs = url.query_pairs_mut();
@@ -92,20 +125,21 @@ impl Client {
                 query_pairs.extend_pairs(params);
             }
         }
-
         let mut headers = reqwest::header::HeaderMap::new();
 
         if self.auth_token.is_some() {
             let token = self.auth_token.clone().unwrap();
-            headers.insert(reqwest::header::AUTHORIZATION, format!("OAuth {}", token).parse().unwrap());
+            headers.insert(reqwest::header::AUTHORIZATION, format!("OAuth {}", token).parse()?);
         }
 
         let response = self.http_client
             .get(url)
             .headers(headers)
             .send()
-            .await?;
-        response.error_for_status()
+            .await?
+            .error_for_status()?;
+
+        Ok(response)
     }
 
     /// Starts streaming the track provided in the track's `stream_url` to the `writer` if the track
@@ -162,7 +196,6 @@ impl Client {
     ///   let num_bytes = client.download(&track, &mut outfile).await.unwrap();
     ///   assert!(num_bytes > 0);
     /// }
-    /// ```
     pub async fn download<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
         if !track.downloadable {
             return Err(Error::TrackNotDownloadable);
@@ -179,7 +212,7 @@ impl Client {
     ///
     /// ```
     async fn read_url<W: AsyncWrite + Unpin>(&self, url: &str, mut writer: W) -> Result<u64> {
-        let url = self.parse_url(url);
+        let url = self.parse_url(url)?;
         let mut response = self.http_client.get(url).send().await?;
         // Follow the redirect just this once.
         if let Some(header) = response.headers().get(reqwest::header::LOCATION).cloned() {
@@ -202,7 +235,7 @@ impl Client {
         let response = self.get("/resolve", Some(&[("url", url)])).await?;
 
         if let Some(header) = response.headers().get(reqwest::header::LOCATION) {
-            Ok(Url::parse(header.to_str()?).unwrap())
+            Ok(Url::parse(header.to_str()?)?)
         } else {
             Err(Error::ApiError("expected location header".to_owned()))
         }
@@ -292,6 +325,11 @@ impl Client {
         Ok(playlists)
     }
 
+    /// Returns details about the given user
+    pub fn user(&self, user_id: usize) -> SingleUserRequestBuilder {
+        SingleUserRequestBuilder::new(self, user_id)
+    }
+
     /// Returns a builder for searching users
     pub fn users(&self) -> UserRequestBuilder {
         UserRequestBuilder::new(self)
@@ -304,16 +342,11 @@ impl Client {
         Ok(likes)
     }
 
-    /// Returns details about the given user
-    pub fn user(&self, user_id: usize) -> SingleUserRequestBuilder {
-        SingleUserRequestBuilder::new(self, user_id)
-    }
-
     /// Parses a string and returns a url with the client_id query parameter set.
-    fn parse_url<S: AsRef<str>>(&self, url: S) -> Url {
-        let mut url = Url::parse(url.as_ref()).unwrap();
+    fn parse_url<S: AsRef<str>>(&self, url: S) -> Result<Url> {
+        let mut url = Url::parse(url.as_ref())?;
         url.query_pairs_mut().append_pair("client_id", &self.client_id);
-        url
+        Ok(url)
     }
 }
 
@@ -428,10 +461,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_user_playlists() {
-        let playlists = client().user(8553751).playlists().await.unwrap().unwrap();
+    async fn test_get_collections() {
+        let path = "/users/7466893/tracks";
+        let no_params: Option<&[(&str, &str)]> = None;
+        let all_tracks: Vec<Track> = client().get_collections(path).await.unwrap().unwrap();
+        let some_tracks: Vec<Track> = client().get(path, no_params.clone()).await.unwrap()
+            .json().await.unwrap();
 
-        assert!(playlists.len() > 0);
+        assert!(some_tracks.len() < all_tracks.len());
     }
 
     #[tokio::test]

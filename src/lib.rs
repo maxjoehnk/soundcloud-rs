@@ -19,6 +19,7 @@ pub use crate::playlist::Playlist;
 // Re-export commonly used resources.
 pub use crate::track::Track;
 pub use crate::user::User;
+pub use crate::page::Page;
 
 /// The static host address for the API.
 pub const API_HOST: &'static str = "api.soundcloud.com";
@@ -30,4 +31,4 @@ mod user;
 mod comment;
 mod app;
 mod playlist;
-
+mod page;

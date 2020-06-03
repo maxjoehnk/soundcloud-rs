@@ -82,7 +82,7 @@ impl<'a> UserRequestBuilder<'a> {
         self
     }
 
-    /// Returns a builder for a single track.
+    /// Returns a builder for a user request
     pub fn id(&self, id: usize) -> SingleUserRequestBuilder {
         SingleUserRequestBuilder {
             client: self.client,
@@ -90,7 +90,11 @@ impl<'a> UserRequestBuilder<'a> {
         }
     }
 
-    /// Returns a builder for a single track.
+    /// Creates a user request builder by resolving a user's unique permalink to
+    /// their user id.
+    ///
+    /// Returns:
+    ///     a builder for a user request
     pub async fn permalink(&self, permalink: &str) -> Result<SingleUserRequestBuilder<'a>> {
         let permalink_url = &format!("https://soundcloud.com/{}", permalink);
         let resource_url = self.client.resolve(permalink_url).await?;
@@ -115,22 +119,27 @@ impl<'a> SingleUserRequestBuilder<'a> {
         }
     }
 
-    /// Retrieve all tracks uploaded by the artist
+    /// Retrieve all tracks uploaded by the user
     ///
     /// Returns:
     ///     a list of tracks if there are any results, None otherwise,
     ///     or an error if one occurred.
     pub async fn tracks(&mut self) -> Result<Option<Vec<Track>>> {
         let path = &format!("/users/{}/tracks", self.id.to_string());
-        let no_params: Option<&[(&str, &str)]> = None;
-        let response = self.client.get(&path, no_params).await?;
-        let tracks: Vec<Track> = response.json().await?;
-        if tracks.is_empty() {
-            Ok(None)
-        }
-        else {
-            Ok(Some(tracks))
-        }
+        self.client.get_collections(&path).await
+    }
+
+    /// Retrieve all tracks liked by the user
+    ///
+    /// Note:
+    ///     /users/{id}/favorites endpoint does not expose playlists liked by the user.
+    ///
+    /// Returns:
+    ///     a list of tracks if there are any results, None otherwise,
+    ///     or an error if one occurred.
+    pub async fn likes(&mut self) -> Result<Option<Vec<Track>>> {
+        let path = format!("/users/{}/favorites", self.id.to_string());
+        self.client.get_collections(&path).await
     }
 
     /// Retrieve all playlists uploaded by the user
@@ -140,15 +149,7 @@ impl<'a> SingleUserRequestBuilder<'a> {
     ///     or an error if one occurred.
     pub async fn playlists(&mut self) -> Result<Option<Vec<Playlist>>> {
         let path = format!("/users/{}/playlists", self.id.to_string());
-        let no_params: Option<&[(&str, &str)]> = None;
-        let response = self.client.get(&path, no_params).await?;
-        let playlists: Vec<Playlist> = response.json().await?;
-        if playlists.is_empty() {
-            Ok(None)
-        }
-        else {
-            Ok(Some(playlists))
-        }
+        self.client.get_collections(&path).await
     }
 
     /// Retrieve a SoundCloud user

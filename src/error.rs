@@ -13,6 +13,7 @@ use std::io;
 use std::result;
 
 use reqwest;
+use url;
 use serde_json;
 
 pub type Result<T> = result::Result<T, Error>;
@@ -23,8 +24,10 @@ pub enum Error {
     JsonError(serde_json::Error),
     HttpError(reqwest::Error),
     HttpHeaderError(reqwest::header::ToStrError),
+    HttpInvalidHeaderError(reqwest::header::InvalidHeaderValue),
     InvalidFilter(String),
     Io(io::Error),
+    UrlParseError(url::ParseError),
     TrackNotDownloadable,
     TrackNotStreamable,
 }
@@ -35,8 +38,10 @@ impl fmt::Display for Error {
             Error::JsonError(ref error) => write!(f, "JSON error: {}", error),
             Error::HttpError(ref error) => write!(f, "HTTP error: {}", error),
             Error::HttpHeaderError(ref error) => write!(f, "HTTP error: {}", error),
+            Error::HttpInvalidHeaderError(ref error) => write!(f, "HTTP error: {}", error),
             Error::ApiError(ref error) => write!(f, "SoundCloud error: {}", error),
             Error::Io(ref error) => write!(f, "IO error: {}", error),
+            Error::UrlParseError(ref error) => write!(f, "URL parsing error: {}", error),
             Error::InvalidFilter(_) => write!(f, "Invalid filter"),
             Error::TrackNotStreamable => write!(f, "The track is not available for streaming"),
             Error::TrackNotDownloadable => write!(f, "The track is not available for download"),
@@ -51,10 +56,12 @@ impl error::Error for Error {
             Error::ApiError(_) => "api error",
             Error::HttpError(ref error) => error.description(),
             Error::HttpHeaderError(ref error) => error.description(),
+            Error::HttpInvalidHeaderError(ref error) => error.description(),
             Error::JsonError(ref error) => error.description(),
             Error::TrackNotStreamable => "track is not streamable",
             Error::TrackNotDownloadable => "track is not downloadable",
             Error::Io(ref error) => error.description(),
+            Error::UrlParseError(ref error) => error.description(),
         }
     }
 
@@ -89,5 +96,17 @@ impl From<io::Error> for Error {
 impl From<reqwest::header::ToStrError> for Error {
     fn from(error: reqwest::header::ToStrError) -> Error {
         Error::HttpHeaderError(error)
+    }
+}
+
+impl From<reqwest::header::InvalidHeaderValue> for Error {
+    fn from(error: reqwest::header::InvalidHeaderValue) -> Error {
+        Error::HttpInvalidHeaderError(error)
+    }
+}
+
+impl From<url::ParseError> for Error {
+    fn from(error: url::ParseError) -> Error {
+        Error::UrlParseError(error)
     }
 }
