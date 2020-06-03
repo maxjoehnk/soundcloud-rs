@@ -117,6 +117,7 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
+    /// use std::path::Path;
     /// use soundcloud::Client;
     /// use tokio::fs::File;
     /// use tokio_util::compat::Tokio02AsyncWriteCompatExt;
@@ -147,6 +148,7 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
+    /// use std::path::Path;
     /// use soundcloud::Client;
     /// use tokio::fs::File;
     /// use tokio_util::compat::Tokio02AsyncWriteCompatExt;
@@ -157,9 +159,10 @@ impl Client {
     ///   let path = Path::new("hi.mp3");
     ///   let track = client.tracks().id(263801976).get().await.unwrap();
     ///   let mut outfile = File::create(path).await.unwrap().compat_write();
-    ///   let num_bytes = client.stream(&track, &mut outfile).await.unwrap();
+    ///   let num_bytes = client.download(&track, &mut outfile).await.unwrap();
     ///   assert!(num_bytes > 0);
     /// }
+    /// ```
     pub async fn download<W: AsyncWrite + Unpin>(&self, track: &Track, mut writer: W) -> Result<u64> {
         if !track.downloadable {
             return Err(Error::TrackNotDownloadable);
