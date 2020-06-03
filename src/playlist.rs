@@ -9,7 +9,7 @@ use crate::user::User;
 #[derive(Debug, Clone, Deserialize)]
 pub enum PlaylistKind {
     #[serde(rename = "playlist")]
-    Playlist
+    Playlist,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -54,25 +54,28 @@ pub struct SinglePlaylistRequestBuilder<'a> {
 impl<'a> SinglePlaylistRequestBuilder<'a> {
     /// Constructs a new track request.
     pub fn new(client: &'a Client, id: usize) -> SinglePlaylistRequestBuilder {
-        SinglePlaylistRequestBuilder {
-            client: client,
-            id: id,
-        }
+        SinglePlaylistRequestBuilder { client, id }
     }
 
     /// Sends the request and return the tracks.
     pub async fn get(&mut self) -> Result<Playlist> {
         let no_params: Option<&[(&str, &str)]> = None;
-        let response = self.client.get(&format!("/playlists/{}", self.id), no_params).await?;
+        let response = self
+            .client
+            .get(&format!("/playlists/{}", self.id), no_params)
+            .await?;
         let track: Playlist = response.json().await?;
 
         Ok(track)
     }
 
     pub fn request_url(&self) -> Url {
-        let url = Url::parse(&format!("https://{}/playlists/{}", super::API_HOST, self.id)).unwrap();
-
-        url
+        Url::parse(&format!(
+            "https://{}/playlists/{}",
+            super::API_HOST,
+            self.id
+        ))
+        .unwrap()
     }
 }
 
@@ -80,14 +83,16 @@ impl<'a> PlaylistRequestBuilder<'a> {
     /// Creates a new playlist request builder, with no set parameters.
     pub fn new(client: &'a Client) -> Self {
         PlaylistRequestBuilder {
-            client: client,
+            client,
             query: None,
         }
     }
 
     /// Sets the search query filter, which will only return playlists with a matching query.
     pub fn query<S>(&'a mut self, query: S) -> &mut Self
-        where S: AsRef<str> {
+    where
+        S: AsRef<str>,
+    {
         self.query = Some(query.as_ref().to_owned());
         self
     }
@@ -96,30 +101,32 @@ impl<'a> PlaylistRequestBuilder<'a> {
     pub fn id(&'a mut self, id: usize) -> SinglePlaylistRequestBuilder {
         SinglePlaylistRequestBuilder {
             client: &self.client,
-            id: id,
+            id,
         }
     }
 
-    /// Performs the request and returns a list of playlists if there are any results, None otherwise,
-    /// or an error if one occurred.
-    pub async fn get(&mut self) -> Result<Option<Vec<Playlist>>> {
+    /// Performs the request and returns a list of playlists or an error if one occurred.
+    pub async fn get(&mut self) -> Result<Vec<Playlist>> {
         use serde_json::Value;
 
-        let response = self.client.get("/playlists", Some(self.request_params())).await?;
+        let response = self
+            .client
+            .get("/playlists", Some(self.request_params()))
+            .await?;
         let playlist_list: Value = response.json().await?;
 
         if let Some(playlist_list) = playlist_list.as_array() {
-            if playlist_list.is_empty() {
-                return Ok(None);
-            } else {
-                let playlists: Vec<Playlist> = playlist_list
-                    .iter().map(|p| serde_json::from_value::<Playlist>(p.clone()).unwrap()).collect();
+            let playlists: Vec<Playlist> = playlist_list
+                .iter()
+                .map(|p| serde_json::from_value::<Playlist>(p.clone()).unwrap())
+                .collect();
 
-                return Ok(Some(playlists));
-            }
+            Ok(playlists)
+        } else {
+            Err(Error::ApiError(
+                "expected response to be an array".to_owned(),
+            ))
         }
-
-        return Err(Error::ApiError("expected response to be an array".to_owned()));
     }
 
     fn request_params(&self) -> Vec<(&str, String)> {

@@ -12,10 +12,6 @@ use std::fmt;
 use std::io;
 use std::result;
 
-use reqwest;
-use url;
-use serde_json;
-
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
@@ -27,9 +23,9 @@ pub enum Error {
     HttpInvalidHeaderError(reqwest::header::InvalidHeaderValue),
     InvalidFilter(String),
     Io(io::Error),
-    UrlParseError(url::ParseError),
     TrackNotDownloadable,
     TrackNotStreamable,
+    UrlParseError(url::ParseError),
 }
 
 impl fmt::Display for Error {
@@ -41,36 +37,21 @@ impl fmt::Display for Error {
             Error::HttpInvalidHeaderError(ref error) => write!(f, "HTTP error: {}", error),
             Error::ApiError(ref error) => write!(f, "SoundCloud error: {}", error),
             Error::Io(ref error) => write!(f, "IO error: {}", error),
-            Error::UrlParseError(ref error) => write!(f, "URL parsing error: {}", error),
             Error::InvalidFilter(_) => write!(f, "Invalid filter"),
             Error::TrackNotStreamable => write!(f, "The track is not available for streaming"),
             Error::TrackNotDownloadable => write!(f, "The track is not available for download"),
+            Error::UrlParseError(ref error) => write!(f, "URL parsing error: {}", error),
         }
     }
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::InvalidFilter(_) => "invalid filter",
-            Error::ApiError(_) => "api error",
-            Error::HttpError(ref error) => error.description(),
-            Error::HttpHeaderError(ref error) => error.description(),
-            Error::HttpInvalidHeaderError(ref error) => error.description(),
-            Error::JsonError(ref error) => error.description(),
-            Error::TrackNotStreamable => "track is not streamable",
-            Error::TrackNotDownloadable => "track is not downloadable",
-            Error::Io(ref error) => error.description(),
-            Error::UrlParseError(ref error) => error.description(),
-        }
-    }
-
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::JsonError(ref error) => Some(error),
             Error::HttpError(ref error) => Some(error),
             Error::Io(ref error) => Some(error),
-            _ => None
+            _ => None,
         }
     }
 }

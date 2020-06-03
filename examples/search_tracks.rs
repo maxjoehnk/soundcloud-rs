@@ -26,8 +26,7 @@ extern crate soundcloud;
 
 #[tokio::main]
 async fn main() {
-    let soundcloud_client_id = std::env::var("SOUNDCLOUD_CLIENT_ID")
-        .expect("SOUNDCLOUD_CLIENT_ID");
+    let soundcloud_client_id = std::env::var("SOUNDCLOUD_CLIENT_ID").expect("SOUNDCLOUD_CLIENT_ID");
     let client = soundcloud::Client::new(&soundcloud_client_id);
     let _tracks = client.tracks().query(Some("noisia")).get().await;
 }

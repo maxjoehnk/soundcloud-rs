@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::Client;
 use crate::error::Result;
-use crate::track::Track;
 use crate::playlist::Playlist;
+use crate::track::Track;
 
 /// Registered user.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -29,15 +29,15 @@ pub struct User {
     /// Description, written by the user.
     pub description: Option<String>,
     /// Discogs name.
-    #[serde(rename="discogs-name")]
+    #[serde(rename = "discogs-name")]
     pub discogs_name: Option<String>, // discogs-name
     /// MySpace name.
-    #[serde(rename="myspace-name")]
+    #[serde(rename = "myspace-name")]
     pub myspace_name: Option<String>, // myspace-name
     /// URL to a website.
     pub website: Option<String>,
     /// Custom title for the website.
-    #[serde(rename="website-title")]
+    #[serde(rename = "website-title")]
     pub website_title: Option<String>, // website-title
     /// Online status.
     pub online: Option<bool>,
@@ -77,7 +77,9 @@ impl<'a> UserRequestBuilder<'a> {
 
     /// Sets the search query filter, which will only return tracks with a matching query.
     pub fn query<S>(&'a mut self, query: Option<S>) -> &mut UserRequestBuilder
-        where S: AsRef<str> {
+    where
+        S: AsRef<str>,
+    {
         self.query = query.map(|s| s.as_ref().to_owned());
         self
     }
@@ -98,10 +100,12 @@ impl<'a> UserRequestBuilder<'a> {
     pub async fn permalink(&self, permalink: &str) -> Result<SingleUserRequestBuilder<'a>> {
         let permalink_url = &format!("https://soundcloud.com/{}", permalink);
         let resource_url = self.client.resolve(permalink_url).await?;
-        let id = resource_url.path_segments()
-            .map(|c| {
-                c.collect::<Vec<_>>()
-            }).unwrap().pop().unwrap();
+        let id = resource_url
+            .path_segments()
+            .map(|c| c.collect::<Vec<_>>())
+            .unwrap()
+            .pop()
+            .unwrap();
         let id = usize::from_str_radix(id, 10).unwrap();
         Ok(SingleUserRequestBuilder {
             client: self.client,
@@ -113,17 +117,13 @@ impl<'a> UserRequestBuilder<'a> {
 impl<'a> SingleUserRequestBuilder<'a> {
     /// Creates a new user request builder, with no set parameters.
     pub fn new(client: &'a Client, id: usize) -> SingleUserRequestBuilder<'a> {
-        SingleUserRequestBuilder {
-            client,
-            id,
-        }
+        SingleUserRequestBuilder { client, id }
     }
 
     /// Retrieve all tracks uploaded by the user
     ///
     /// Returns:
-    ///     a list of tracks if there are any results, None otherwise,
-    ///     or an error if one occurred.
+    ///     a list of tracks or an error if one occurred.
     pub async fn tracks(&mut self) -> Result<Option<Vec<Track>>> {
         let path = &format!("/users/{}/tracks", self.id.to_string());
         self.client.get_collections(&path).await
@@ -145,8 +145,7 @@ impl<'a> SingleUserRequestBuilder<'a> {
     /// Retrieve all playlists uploaded by the user
     ///
     /// Returns:
-    ///     a list of playlists if there are any results, None otherwise,
-    ///     or an error if one occurred.
+    ///     a list of playlists or an error if one occurred.
     pub async fn playlists(&mut self) -> Result<Option<Vec<Playlist>>> {
         let path = format!("/users/{}/playlists", self.id.to_string());
         self.client.get_collections(&path).await
@@ -158,7 +157,10 @@ impl<'a> SingleUserRequestBuilder<'a> {
     ///     User data in JSON format
     pub async fn get(&mut self) -> Result<User> {
         let no_params: Option<&[(&str, &str)]> = None;
-        let response = self.client.get(&format!("/users/{}", self.id), no_params).await?;
+        let response = self
+            .client
+            .get(&format!("/users/{}", self.id), no_params)
+            .await?;
         let user: User = response.json().await?;
 
         Ok(user)
