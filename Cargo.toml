@@ -11,6 +11,14 @@ keywords = ["soundcloud", "http", "api", "client"]
 repository = "https://github.com/maxjoehnk/soundcloud-rs"
 description = "SoundCloud API implementation in Rust"
 edition = "2018"
+categories = ["api-bindings"]
+readme = "README.md"
+
+[badges]
+travis-ci = { repository = "maxjoehnk/soundcloud-rs" }
+is-it-maintained-issue-resolution = { repository = "https://github.com/maxjoehnk/soundcloud-rs" }
+is-it-maintained-open-issues = { repository = "https://github.com/maxjoehnk/soundcloud-rs" }
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 log = "0.3"
