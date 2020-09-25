@@ -4,6 +4,7 @@ use crate::client::Client;
 use crate::error::Result;
 use crate::playlist::Playlist;
 use crate::track::Track;
+use crate::Error;
 
 /// Registered user.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -111,6 +112,40 @@ impl<'a> UserRequestBuilder<'a> {
             client: self.client,
             id,
         })
+    }
+
+    /// Performs the request and returns a list of users or an error if one occurred.
+    pub async fn get(&mut self) -> Result<Vec<User>> {
+        use serde_json::Value;
+
+        let response = self
+            .client
+            .get("/users", Some(self.request_params()))
+            .await?;
+        let user_list: Value = response.json().await?;
+
+        if let Some(user_list) = user_list.as_array() {
+            let users: Vec<User> = user_list
+                .iter()
+                .map(|t| serde_json::from_value::<User>(t.clone()).unwrap())
+                .collect();
+
+            Ok(users)
+        } else {
+            Err(Error::ApiError(
+                "expected response to be an array".to_owned(),
+            ))
+        }
+    }
+
+    fn request_params(&self) -> Vec<(&str, String)> {
+        let mut result = vec![];
+
+        if let Some(ref query) = self.query {
+            result.push(("q", query.clone()));
+        }
+
+        result
     }
 }
 

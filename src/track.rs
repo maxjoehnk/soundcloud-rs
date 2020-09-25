@@ -273,8 +273,7 @@ impl<'a> TrackRequestBuilder<'a> {
         }
     }
 
-    /// Performs the request and returns a list of tracks if there are any results, None otherwise,
-    /// or an error if one occurred.
+    /// Performs the request and returns a list of tracks or an error if one occurred.
     pub async fn get(&mut self) -> Result<Vec<Track>> {
         use serde_json::Value;
 

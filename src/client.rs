@@ -514,6 +514,13 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_get_users() {
+        let users = client().users().query(Some("monstercat")).get().await.unwrap();
+
+        assert!(users.len() > 0);
+    }
+
+    #[tokio::test]
     async fn test_get_user_from_permalink() {
         let user = client()
             .users()
