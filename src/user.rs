@@ -2,9 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::Client;
 use crate::error::Result;
-use crate::playlist::Playlist;
-use crate::track::Track;
+use crate::track::{Track, Tracks};
 use crate::Error;
+use crate::page::PageOptions;
+use crate::Stream;
 
 /// Registered user.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -158,33 +159,27 @@ impl<'a> SingleUserRequestBuilder<'a> {
     /// Retrieve all tracks uploaded by the user
     ///
     /// Returns:
-    ///     a list of tracks or an error if one occurred.
-    pub async fn tracks(&mut self) -> Result<Option<Vec<Track>>> {
-        let path = &format!("/users/{}/tracks", self.id.to_string());
-        self.client.get_collections(&path).await
+    ///     an instance of Tracks
+    pub fn tracks(&self) -> Tracks {
+        Tracks::new(self.client.clone(), self.id)
     }
 
     /// Retrieve all tracks liked by the user
     ///
-    /// Note:
-    ///     /users/{id}/favorites endpoint does not expose playlists liked by the user.
-    ///
     /// Returns:
-    ///     a list of tracks if there are any results, None otherwise,
-    ///     or an error if one occurred.
-    pub async fn likes(&mut self) -> Result<Option<Vec<Track>>> {
-        let path = format!("/users/{}/favorites", self.id.to_string());
-        self.client.get_collections(&path).await
+    ///     an instance of Likes
+    pub fn likes(&mut self) -> Likes {
+        Likes::new(self.client.clone(), self.id)
     }
 
-    /// Retrieve all playlists uploaded by the user
-    ///
-    /// Returns:
-    ///     a list of playlists or an error if one occurred.
-    pub async fn playlists(&mut self) -> Result<Option<Vec<Playlist>>> {
-        let path = format!("/users/{}/playlists", self.id.to_string());
-        self.client.get_collections(&path).await
-    }
+    ///// Retrieve all playlists uploaded by the user
+    /////
+    ///// Returns:
+    /////     a list of playlists or an error if one occurred.
+    //pub async fn playlists(&mut self) -> Result<Vec<Playlist>> {
+    //    let path = format!("/users/{}/playlists", self.id.to_string());
+    //    self.client.get_collections(&path).await
+    //}
 
     /// Retrieve a SoundCloud user
     ///
@@ -199,5 +194,34 @@ impl<'a> SingleUserRequestBuilder<'a> {
         let user: User = response.json().await?;
 
         Ok(user)
+    }
+}
+
+/// Provides access to operations available for a user's tracks
+pub struct Likes {
+    client: Client,
+    user_id: usize,
+}
+
+impl Likes {
+    /// create a new instance of a souncloud user's likes
+    pub fn new(client: Client, user_id: usize) -> Self {
+        Likes {
+            client,
+            user_id
+        }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/users/{}/favorites{}", self.user_id, extra)
+    }
+
+    /// Return a stream of all tracks this user likes
+    pub fn iter(&self, options: &PageOptions) -> Stream<Track> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"))
     }
 }

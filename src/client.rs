@@ -8,10 +8,11 @@
 // except according to those terms.
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
 
+use log::debug;
 use futures::io::AsyncWrite;
 use futures::stream::TryStreamExt;
+use futures::prelude::*;
 use serde::de::DeserializeOwned;
 use url::Url;
 
@@ -20,9 +21,11 @@ use crate::page::Page;
 use crate::playlist::{Playlist, PlaylistRequestBuilder, SinglePlaylistRequestBuilder};
 use crate::track::{SingleTrackRequestBuilder, Track, TrackRequestBuilder};
 use crate::user::{SingleUserRequestBuilder, UserRequestBuilder};
+use crate::{Stream, Future};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Client {
+    host: String,
     client_id: String,
     auth_token: Option<String>,
     http_client: reqwest::Client,
@@ -45,6 +48,7 @@ impl Client {
             .unwrap();
 
         Client {
+            host: super::API_HOST.to_owned(),
             client_id: client_id.to_owned(),
             http_client: client,
             auth_token: None,
@@ -58,43 +62,6 @@ impl Client {
 
     pub fn authenticate_with_token(&mut self, token: String) {
         self.auth_token = Some(token);
-    }
-
-    /// Collects all results of an endpoint that is paginated by
-    /// following next_href in the response until exhausted.
-    ///
-    /// Returns:
-    ///     A list of all items accumulated in each collection, or None if
-    ///     there are no results or an error if one occured.
-    pub async fn get_collections<T>(&self, path: &str) -> Result<Option<Vec<T>>>
-    where
-        T: DeserializeOwned + Clone,
-    {
-        let mut collections: Vec<T> = Vec::new();
-        let mut params = HashMap::new();
-        params.insert("linked_partitioning".to_owned(), "1".to_owned());
-        params.insert("limit".to_owned(), "200".to_owned());
-
-        loop {
-            let page: Page<T> = self.get(path, Some(params.clone())).await?.json().await?;
-
-            if page.is_empty() && collections.is_empty() {
-                return Ok(None);
-            }
-            collections.extend(page.collection.to_owned());
-
-            match page.next_query() {
-                Ok(Some(query)) => {
-                    params = query;
-                }
-                Ok(None) => {
-                    return Ok(Some(collections));
-                }
-                Err(err) => {
-                    return Err(err);
-                }
-            }
-        }
     }
 
     /// Creates and sends a HTTP GET request to the API endpoint.
@@ -120,14 +87,18 @@ impl Client {
     ///   assert!(!buffer.is_empty());
     ///}
     /// ```
-    pub async fn get<I, K, V>(&self, path: &str, params: Option<I>) -> Result<reqwest::Response>
+    pub async fn get<I, K, V>(
+        &self,
+        path: &str,
+        params: Option<I>,
+    ) -> reqwest::Result<reqwest::Response>
     where
         I: IntoIterator,
         I::Item: Borrow<(K, V)>,
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let mut url = Url::parse(&format!("https://{}{}", super::API_HOST, path))?;
+        let mut url = Url::parse(&format!("https://{}{}", super::API_HOST, path)).unwrap();
 
         {
             let mut query_pairs = url.query_pairs_mut();
@@ -137,13 +108,62 @@ impl Client {
                 query_pairs.extend_pairs(params);
             }
         }
+
         let mut headers = reqwest::header::HeaderMap::new();
 
         if self.auth_token.is_some() {
             let token = self.auth_token.clone().unwrap();
             headers.insert(
                 reqwest::header::AUTHORIZATION,
-                format!("OAuth {}", token).parse()?,
+                format!("OAuth {}", token).parse().unwrap(),
+            );
+        }
+
+        let response = self.http_client.get(url).headers(headers).send().await?;
+        response.error_for_status()
+    }
+
+    pub fn get_stream<T>(&self, path: &str) -> Stream<T>
+    where
+        T: DeserializeOwned + 'static + Send,
+    {
+        unfold(self.clone(), self.get_pages(&path))
+    }
+
+    fn get_pages<T>(&self, path: &str) -> Future<Page<T>>
+    where
+        T: DeserializeOwned + 'static + Send
+    {
+        self.get_page(&(self.host.clone() + path))
+    }
+
+    fn get_pages_url<T>(&self, url: &str) -> Future<Page<T>>
+    where
+        T: DeserializeOwned + 'static + Send,
+    {
+        self.get_page(url)
+    }
+
+    fn get_page<T>(
+        &self,
+        path: &str,
+    ) -> Future<Page<T>>
+    where
+        T: DeserializeOwned + 'static + Send,
+    {
+        let mut url = Url::parse(path).unwrap();
+
+        if !url.query_pairs().any(|(q, _)| q == "client_id") {
+            url.query_pairs_mut().append_pair("client_id", &self.client_id);
+        }
+
+        let mut headers = reqwest::header::HeaderMap::new();
+
+        if self.auth_token.is_some() {
+            let token = self.auth_token.clone().unwrap();
+            headers.insert(
+                reqwest::header::AUTHORIZATION,
+                format!("OAuth {}", token).parse().unwrap(),
             );
         }
 
@@ -152,9 +172,24 @@ impl Client {
             .get(url)
             .headers(headers)
             .send()
-            .await?
-            .error_for_status()?;
-        Ok(response)
+            .map_err(Error::from);
+
+        Box::pin(response.and_then(move |response| {
+            Box::pin(
+                response
+                .bytes()
+                .map_err(Error::from)
+                .and_then(move |response_body| async move {
+                    debug!(
+                        "response payload {}",
+                        String::from_utf8_lossy(&response_body)
+                    );
+                    let parsed_response = serde_json::from_slice::<Page<T>>(&response_body);
+                    parsed_response
+                    .map_err(Error::from)
+                }),
+            )
+        }))
     }
 
     /// Starts streaming the track provided in the track's `stream_url` to the `writer` if the track
@@ -373,6 +408,44 @@ impl Client {
     }
 }
 
+/// "unfold" paginated results of a list of soundcloud entities 
+fn unfold<T>(
+    client: Client,
+    first: Future<Page<T>>,
+) -> Stream<T>
+where
+    T: DeserializeOwned + 'static + Send,
+{
+    Box::pin(
+        first
+        .map_ok(move |page| {
+            let mut items = page.collection;
+            items.reverse();
+            let link = page.next_href;
+            stream::try_unfold(
+                (client, link, items),
+                move |(client, link, mut items)| async move {
+                    match items.pop() {
+                        Some(item) => Ok(Some((item, (client, link, items)))),
+                        None => match link {
+                            Some(url) => {
+                                let page = client.get_pages_url(&url).await?;
+                                let link = page.next_href;
+                                let mut items = page.collection;
+                                let item = items.remove(0);
+                                items.reverse();
+                                Ok(Some((item, (client, link, items))))
+                            }
+                            None => Ok(None),
+                        },
+                    }
+                },
+            )
+        })
+        .try_flatten_stream(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use url::Url;
@@ -485,32 +558,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_tracks() {
-        let tracks = client().user(8553751).tracks().await.unwrap().unwrap();
+        use crate::page::PageOptions;
 
-        assert!(tracks.len() > 0);
-    }
-
-    #[tokio::test]
-    async fn test_get_collections() {
-        let path = "/users/7466893/tracks";
-        let no_params: Option<&[(&str, &str)]> = None;
-        let all_tracks: Vec<Track> = client().get_collections(path).await.unwrap().unwrap();
-        let some_tracks: Vec<Track> = client()
-            .get(path, no_params.clone())
-            .await
-            .unwrap()
-            .json()
+        let tracks: Vec<Track> = client()
+            .user(7466893)
+            .tracks()
+            .iter(
+                &PageOptions::builder()
+                    .page_size(10)
+                    .build()
+            ).try_collect()
             .await
             .unwrap();
 
-        assert!(some_tracks.len() < all_tracks.len());
-    }
-
-    #[tokio::test]
-    async fn test_get_user_playlists() {
-        let playlists = client().user(8553751).playlists().await.unwrap().unwrap();
-
-        assert!(playlists.len() > 0);
+        assert!(tracks.len() > 0);
     }
 
     #[tokio::test]
@@ -532,19 +593,5 @@ mod tests {
             .unwrap();
 
         assert_eq!(user.id, 7466893);
-    }
-
-    #[tokio::test]
-    async fn test_get_user_tracks_from_permalink() {
-        let tracks = client()
-            .users()
-            .permalink("west1ne")
-            .await
-            .unwrap()
-            .tracks()
-            .await
-            .unwrap();
-
-        assert!(tracks.unwrap().len() > 0);
     }
 }

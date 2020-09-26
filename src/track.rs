@@ -17,6 +17,8 @@ use crate::app::App;
 use crate::client::Client;
 use crate::error::{Error, Result};
 use crate::user::User;
+use crate::page::PageOptions;
+use crate::Stream;
 
 #[derive(Debug)]
 pub enum Filter {
@@ -340,5 +342,34 @@ impl<'a> TrackRequestBuilder<'a> {
 impl PartialEq for Track {
     fn eq(&self, other: &Track) -> bool {
         other.id == self.id
+    }
+}
+
+/// Provides access to operations available for a user's tracks
+pub struct Tracks {
+    client: Client,
+    user_id: usize,
+}
+
+impl Tracks {
+    /// create a new instance of a souncloud user's tracks
+    pub fn new(client: Client, user_id: usize) -> Self {
+        Tracks {
+            client,
+            user_id
+        }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/users/{}/tracks{}", self.user_id, extra)
+    }
+
+    /// Return a stream of all tracks for this user
+    pub fn iter(&self, options: &PageOptions) -> Stream<Track> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"))
     }
 }

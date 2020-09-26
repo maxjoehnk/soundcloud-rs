@@ -1,9 +1,49 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use url::Url;
+use url::{form_urlencoded, Url};
 
 use crate::error::Result;
+
+#[derive(Default)]
+pub struct PageOptions {
+    params: HashMap<&'static str, String>,
+}
+
+impl PageOptions {
+    pub fn builder() -> PageOptionsBuilder {
+        PageOptionsBuilder::default()
+    }
+
+    pub fn serialize(&self) -> Option<String> {
+        if self.params.is_empty() {
+            None
+        } else {
+            let encoded: String = form_urlencoded::Serializer::new(String::new())
+                .extend_pairs(&self.params)
+                .finish();
+            Some(encoded)
+        }
+    }
+}
+
+/// a mutable page builder
+#[derive(Default)]
+pub struct PageOptionsBuilder(PageOptions);
+
+impl PageOptionsBuilder {
+    pub fn page_size(&mut self, n: u32) -> &mut Self {
+        self.0.params.insert("linked_partitioning", "true".to_string());
+        self.0.params.insert("page_size", n.to_string());
+        self
+    }
+
+    pub fn build(&self) -> PageOptions {
+        PageOptions {
+            params: self.0.params.clone(),
+        }
+    }
+}
 
 /// Paginated response
 #[derive(Serialize, Deserialize, Debug)]

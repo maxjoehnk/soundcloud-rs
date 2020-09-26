@@ -1,4 +1,4 @@
-// Copyright (c) 2016
+// Copyright (c) 2016, Mikkel Kroman <mk@uplink.io>
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -22,14 +22,25 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-extern crate soundcloud;
+use futures::prelude::*;
+use soundcloud::PageOptions;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let soundcloud_client_id = env!("SOUNDCLOUD_CLIENT_ID");
     let client = soundcloud::Client::new(&soundcloud_client_id);
-    let mut user = client.users().permalink("west1ne").await?;
-    let _tracks = user.tracks().await?;
+    let mut tracks = client
+        .user(7466893)
+        .likes()
+        .iter(
+            &PageOptions::builder()
+                .page_size(10)
+                .build()
+        );
+
+    while let Some(track) = tracks.try_next().await? {
+        println!("{} - {}", track.user.username, track.title);
+    }
 
     Ok(())
 }

@@ -13,15 +13,22 @@
 
 pub use crate::app::App;
 pub use crate::client::Client;
-pub use crate::error::Error;
+pub use crate::error::{Error, Result};
 // Re-export commonly used resources.
 pub use crate::comment::*;
 pub use crate::playlist::*;
 pub use crate::track::*;
 pub use crate::user::*;
+pub use crate::page::*;
+
+use std::pin::Pin;
+use futures::{Future as StdFuture, Stream as StdStream};
+pub type Future<T> = Pin<Box<dyn StdFuture<Output = Result<T>> + Send>>;
+pub type Stream<T> = Pin<Box<dyn StdStream<Item = Result<T>> + Send>>;
+
 
 /// The static host address for the API.
-pub const API_HOST: &str = "api.soundcloud.com";
+pub const API_HOST: &str = "https://api.soundcloud.com";
 
 mod app;
 mod client;

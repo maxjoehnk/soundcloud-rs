@@ -21,7 +21,7 @@ is-it-maintained-open-issues = { repository = "https://github.com/maxjoehnk/soun
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.10", features = ["json", "stream"] }
