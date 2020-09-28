@@ -33,7 +33,9 @@ pub struct PageOptionsBuilder(PageOptions);
 
 impl PageOptionsBuilder {
     pub fn page_size(&mut self, n: u32) -> &mut Self {
-        self.0.params.insert("linked_partitioning", "true".to_string());
+        self.0
+            .params
+            .insert("linked_partitioning", "true".to_string());
         self.0.params.insert("page_size", n.to_string());
         self
     }

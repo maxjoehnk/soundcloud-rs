@@ -9,10 +9,10 @@
 
 use std::borrow::Borrow;
 
-use log::debug;
+use futures::future::BoxFuture;
 use futures::io::AsyncWrite;
-use futures::stream::TryStreamExt;
 use futures::prelude::*;
+use futures::stream::{BoxStream, TryStreamExt};
 use serde::de::DeserializeOwned;
 use url::Url;
 
@@ -21,7 +21,6 @@ use crate::page::Page;
 use crate::playlist::{Playlist, PlaylistRequestBuilder, SinglePlaylistRequestBuilder};
 use crate::track::{SingleTrackRequestBuilder, Track, TrackRequestBuilder};
 use crate::user::{SingleUserRequestBuilder, UserRequestBuilder};
-use crate::{Stream, Future};
 
 #[derive(Clone, Debug)]
 pub struct Client {
@@ -87,18 +86,14 @@ impl Client {
     ///   assert!(!buffer.is_empty());
     ///}
     /// ```
-    pub async fn get<I, K, V>(
-        &self,
-        path: &str,
-        params: Option<I>,
-    ) -> reqwest::Result<reqwest::Response>
+    pub async fn get<I, K, V>(&self, path: &str, params: Option<I>) -> Result<reqwest::Response>
     where
         I: IntoIterator,
         I::Item: Borrow<(K, V)>,
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let mut url = Url::parse(&format!("https://{}{}", super::API_HOST, path)).unwrap();
+        let mut url = Url::parse(&format!("{}", self.host.clone() + path))?;
 
         {
             let mut query_pairs = url.query_pairs_mut();
@@ -115,46 +110,44 @@ impl Client {
             let token = self.auth_token.clone().unwrap();
             headers.insert(
                 reqwest::header::AUTHORIZATION,
-                format!("OAuth {}", token).parse().unwrap(),
+                format!("OAuth {}", token).parse()?,
             );
         }
 
         let response = self.http_client.get(url).headers(headers).send().await?;
-        response.error_for_status()
+        response.error_for_status().map_err(Error::from)
     }
 
-    pub fn get_stream<T>(&self, path: &str) -> Stream<T>
+    pub fn get_stream<T>(&self, path: &str, num_pages: u64) -> BoxStream<Result<T>>
     where
         T: DeserializeOwned + 'static + Send,
     {
-        unfold(self.clone(), self.get_pages(&path))
+        unfold(self.clone(), self.get_pages(&path), num_pages)
     }
 
-    fn get_pages<T>(&self, path: &str) -> Future<Page<T>>
+    fn get_pages<T>(&self, path: &str) -> BoxFuture<Result<Page<T>>>
     where
-        T: DeserializeOwned + 'static + Send
+        T: DeserializeOwned + 'static + Send,
     {
         self.get_page(&(self.host.clone() + path))
     }
 
-    fn get_pages_url<T>(&self, url: &str) -> Future<Page<T>>
+    fn get_pages_url<T>(&self, url: &str) -> BoxFuture<Result<Page<T>>>
     where
         T: DeserializeOwned + 'static + Send,
     {
         self.get_page(url)
     }
 
-    fn get_page<T>(
-        &self,
-        path: &str,
-    ) -> Future<Page<T>>
+    fn get_page<T>(&self, path: &str) -> BoxFuture<Result<Page<T>>>
     where
         T: DeserializeOwned + 'static + Send,
     {
         let mut url = Url::parse(path).unwrap();
 
         if !url.query_pairs().any(|(q, _)| q == "client_id") {
-            url.query_pairs_mut().append_pair("client_id", &self.client_id);
+            url.query_pairs_mut()
+                .append_pair("client_id", &self.client_id);
         }
 
         let mut headers = reqwest::header::HeaderMap::new();
@@ -174,22 +167,7 @@ impl Client {
             .send()
             .map_err(Error::from);
 
-        Box::pin(response.and_then(move |response| {
-            Box::pin(
-                response
-                .bytes()
-                .map_err(Error::from)
-                .and_then(move |response_body| async move {
-                    debug!(
-                        "response payload {}",
-                        String::from_utf8_lossy(&response_body)
-                    );
-                    let parsed_response = serde_json::from_slice::<Page<T>>(&response_body);
-                    parsed_response
-                    .map_err(Error::from)
-                }),
-            )
-        }))
+        Box::pin(response.and_then(move |response| response.json().map_err(Error::from)))
     }
 
     /// Starts streaming the track provided in the track's `stream_url` to the `writer` if the track
@@ -408,41 +386,54 @@ impl Client {
     }
 }
 
-/// "unfold" paginated results of a list of soundcloud entities 
+/// "unfold" paginated results of a list of soundcloud entities
 fn unfold<T>(
     client: Client,
-    first: Future<Page<T>>,
-) -> Stream<T>
+    first: BoxFuture<Result<Page<T>>>,
+    num_pages: u64,
+) -> BoxStream<Result<T>>
 where
     T: DeserializeOwned + 'static + Send,
 {
     Box::pin(
         first
-        .map_ok(move |page| {
-            let mut items = page.collection;
-            items.reverse();
-            let link = page.next_href;
-            stream::try_unfold(
-                (client, link, items),
-                move |(client, link, mut items)| async move {
-                    match items.pop() {
-                        Some(item) => Ok(Some((item, (client, link, items)))),
-                        None => match link {
-                            Some(url) => {
-                                let page = client.get_pages_url(&url).await?;
-                                let link = page.next_href;
-                                let mut items = page.collection;
-                                let item = items.remove(0);
-                                items.reverse();
-                                Ok(Some((item, (client, link, items))))
+            .map_ok(move |page| {
+                let count = 1;
+                let mut items = page.collection;
+                items.reverse();
+                let link = page.next_href;
+                stream::try_unfold(
+                    (client, link, items, count),
+                    move |(client, link, mut items, mut count)| async move {
+                        match items.pop() {
+                            Some(item) => Ok(Some((item, (client, link, items, count)))),
+                            None => {
+                                if count == num_pages {
+                                    Ok(None)
+                                } else {
+                                    match link {
+                                        Some(url) => {
+                                            count += 1;
+                                            let page = client.get_pages_url(&url).await?;
+                                            let link = page.next_href;
+                                            let mut items = page.collection;
+                                            items.reverse();
+                                            match items.pop() {
+                                                Some(item) => {
+                                                    Ok(Some((item, (client, link, items, count))))
+                                                }
+                                                None => Ok(None),
+                                            }
+                                        }
+                                        None => Ok(None),
+                                    }
+                                }
                             }
-                            None => Ok(None),
-                        },
-                    }
-                },
-            )
-        })
-        .try_flatten_stream(),
+                        }
+                    },
+                )
+            })
+            .try_flatten_stream(),
     )
 }
 
@@ -557,26 +548,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_user_tracks() {
-        use crate::page::PageOptions;
-
-        let tracks: Vec<Track> = client()
-            .user(7466893)
-            .tracks()
-            .iter(
-                &PageOptions::builder()
-                    .page_size(10)
-                    .build()
-            ).try_collect()
+    async fn test_get_users() {
+        let users = client()
+            .users()
+            .query(Some("monstercat"))
+            .get()
             .await
             .unwrap();
-
-        assert!(tracks.len() > 0);
-    }
-
-    #[tokio::test]
-    async fn test_get_users() {
-        let users = client().users().query(Some("monstercat")).get().await.unwrap();
 
         assert!(users.len() > 0);
     }
@@ -593,5 +571,33 @@ mod tests {
             .unwrap();
 
         assert_eq!(user.id, 7466893);
+    }
+
+    #[tokio::test]
+    async fn test_get_first_page_user_tracks() {
+        use crate::page::PageOptions;
+
+        let likes = client().user(7466893).tracks();
+        let tracks: Vec<Track> = likes
+            .get(&PageOptions::builder().page_size(10).build(), 1)
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert!(tracks.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_paginate_user_tracks() {
+        use crate::page::PageOptions;
+
+        let tracks = client().user(7466893).tracks();
+        let tracks: Vec<Track> = tracks
+            .iter(&PageOptions::builder().page_size(10).build())
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert!(tracks.len() > 0);
     }
 }

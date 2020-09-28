@@ -1,11 +1,12 @@
+use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
 use crate::client::Client;
 use crate::error::Result;
+use crate::page::PageOptions;
+use crate::playlist::Playlists;
 use crate::track::{Track, Tracks};
 use crate::Error;
-use crate::page::PageOptions;
-use crate::Stream;
 
 /// Registered user.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -172,14 +173,13 @@ impl<'a> SingleUserRequestBuilder<'a> {
         Likes::new(self.client.clone(), self.id)
     }
 
-    ///// Retrieve all playlists uploaded by the user
-    /////
-    ///// Returns:
-    /////     a list of playlists or an error if one occurred.
-    //pub async fn playlists(&mut self) -> Result<Vec<Playlist>> {
-    //    let path = format!("/users/{}/playlists", self.id.to_string());
-    //    self.client.get_collections(&path).await
-    //}
+    /// Retrieve all playlists uploaded by the user
+    ///
+    /// Returns:
+    ///     an instance of Playlists
+    pub fn playlists(&mut self) -> Playlists {
+        Playlists::new(self.client.clone(), self.id)
+    }
 
     /// Retrieve a SoundCloud user
     ///
@@ -197,7 +197,7 @@ impl<'a> SingleUserRequestBuilder<'a> {
     }
 }
 
-/// Provides access to operations available for a user's tracks
+/// Provides access to operations available for a user's liked tracks
 pub struct Likes {
     client: Client,
     user_id: usize,
@@ -206,10 +206,7 @@ pub struct Likes {
 impl Likes {
     /// create a new instance of a souncloud user's likes
     pub fn new(client: Client, user_id: usize) -> Self {
-        Likes {
-            client,
-            user_id
-        }
+        Likes { client, user_id }
     }
 
     fn path(&self, extra: &str) -> String {
@@ -217,11 +214,20 @@ impl Likes {
     }
 
     /// Return a stream of all tracks this user likes
-    pub fn iter(&self, options: &PageOptions) -> Stream<Track> {
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Track>> {
         let mut uri = vec![self.path("")];
         if let Some(query) = options.serialize() {
             uri.push(query);
         }
-        self.client.get_stream(&uri.join("?"))
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of tracks this user likes limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
     }
 }

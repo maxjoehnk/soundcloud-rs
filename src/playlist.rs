@@ -1,8 +1,10 @@
+use futures::stream::BoxStream;
 use serde::Deserialize;
 use url::Url;
 
 use crate::client::Client;
 use crate::error::{Error, Result};
+use crate::page::PageOptions;
 use crate::track::Track;
 use crate::user::User;
 
@@ -156,5 +158,40 @@ impl<'a> PlaylistRequestBuilder<'a> {
         }
 
         result
+    }
+}
+
+/// Provides access to operations available for a user's playlists
+pub struct Playlists {
+    client: Client,
+    user_id: usize,
+}
+
+impl Playlists {
+    /// create a new instance of a souncloud user's playlists
+    pub fn new(client: Client, user_id: usize) -> Self {
+        Playlists { client, user_id }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/users/{}/playlists{}", self.user_id, extra)
+    }
+
+    /// Return a stream of all playlists for this user
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Playlist>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of playlists for this user limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Playlist>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
     }
 }

@@ -10,15 +10,15 @@
 use std::fmt;
 use std::str;
 
+use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::app::App;
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::user::User;
 use crate::page::PageOptions;
-use crate::Stream;
+use crate::user::User;
 
 #[derive(Debug)]
 pub enum Filter {
@@ -354,10 +354,7 @@ pub struct Tracks {
 impl Tracks {
     /// create a new instance of a souncloud user's tracks
     pub fn new(client: Client, user_id: usize) -> Self {
-        Tracks {
-            client,
-            user_id
-        }
+        Tracks { client, user_id }
     }
 
     fn path(&self, extra: &str) -> String {
@@ -365,11 +362,20 @@ impl Tracks {
     }
 
     /// Return a stream of all tracks for this user
-    pub fn iter(&self, options: &PageOptions) -> Stream<Track> {
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Track>> {
         let mut uri = vec![self.path("")];
         if let Some(query) = options.serialize() {
             uri.push(query);
         }
-        self.client.get_stream(&uri.join("?"))
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of tracks for this user limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
     }
 }
