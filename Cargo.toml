@@ -3,7 +3,7 @@ name = "soundcloud"
 authors = [
     "Mikkel Kroman <mk@uplink.io>",
     "Max Jöhnk <maxjoehnk@gmail.com>",
-    "Aaron Enberg, <pastaaroni@gmail.com>"
+    "Aaron Enberg <aaronenberg@gmail.com>"
 ]
 version = "0.4.0"
 license = "MIT/Apache-2.0"

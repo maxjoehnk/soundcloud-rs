@@ -2,6 +2,7 @@ use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
 use crate::client::Client;
+use crate::comment::Comments;
 use crate::error::Result;
 use crate::page::PageOptions;
 use crate::playlist::Playlists;
@@ -179,6 +180,14 @@ impl<'a> SingleUserRequestBuilder<'a> {
     ///     an instance of Playlists
     pub fn playlists(&mut self) -> Playlists {
         Playlists::new(self.client.clone(), self.id)
+    }
+
+    /// Retrieve all comments for this user
+    ///
+    /// Returns:
+    ///     an instance of Comments
+    pub fn comments(&mut self) -> Comments {
+        Comments::new(self.client.clone(), self.id)
     }
 
     /// Retrieve a SoundCloud user
