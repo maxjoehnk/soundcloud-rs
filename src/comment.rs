@@ -27,14 +27,14 @@ pub struct Comment {
     pub track_id: usize,
 }
 
-/// Provides access to operations available for a user's tracks
+/// Provides access to operations available for a user's comments
 pub struct Comments {
     client: Client,
     user_id: usize,
 }
 
 impl Comments {
-    /// create a new instance of a souncloud user's tracks
+    /// create a new instance of a souncloud user's comments
     pub fn new(client: Client, user_id: usize) -> Self {
         Comments { client, user_id }
     }
@@ -43,7 +43,7 @@ impl Comments {
         format!("/users/{}/comments{}", self.user_id, extra)
     }
 
-    /// Return a stream of all tracks for this user
+    /// Return a stream of all comments for this user
     pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Comment>> {
         let mut uri = vec![self.path("")];
         if let Some(query) = options.serialize() {
@@ -52,7 +52,7 @@ impl Comments {
         self.client.get_stream(&uri.join("?"), u64::MAX)
     }
 
-    /// Return a stream of tracks for this user limited to the first num_pages pages
+    /// Return a stream of comments for this user limited to the first num_pages pages
     pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Comment>> {
         let mut uri = vec![self.path("")];
         if let Some(query) = options.serialize() {
