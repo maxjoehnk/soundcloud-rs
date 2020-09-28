@@ -1,6 +1,5 @@
 use futures::stream::BoxStream;
 use serde::Deserialize;
-use url::Url;
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -88,15 +87,6 @@ impl<'a> SinglePlaylistRequestBuilder<'a> {
         let track: Playlist = response.json().await?;
 
         Ok(track)
-    }
-
-    pub fn request_url(&self) -> Url {
-        Url::parse(&format!(
-            "https://{}/playlists/{}",
-            super::API_HOST,
-            self.id
-        ))
-        .unwrap()
     }
 }
 

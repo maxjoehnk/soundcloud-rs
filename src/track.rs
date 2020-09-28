@@ -12,7 +12,6 @@ use std::str;
 
 use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::app::App;
 use crate::client::Client;
@@ -191,10 +190,6 @@ impl<'a> SingleTrackRequestBuilder<'a> {
         let track: Track = response.json().await?;
 
         Ok(track)
-    }
-
-    pub fn request_url(&self) -> Url {
-        Url::parse(&format!("https://{}/tracks/{}", super::API_HOST, self.id)).unwrap()
     }
 }
 

@@ -577,8 +577,8 @@ mod tests {
     async fn test_get_first_page_user_tracks() {
         use crate::page::PageOptions;
 
-        let likes = client().user(7466893).tracks();
-        let tracks: Vec<Track> = likes
+        let tracks = client().user(7466893).tracks();
+        let tracks: Vec<Track> = tracks
             .get(&PageOptions::builder().page_size(10).build(), 1)
             .try_collect()
             .await
