@@ -15,10 +15,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::App;
 use crate::client::Client;
+use crate::comment::Comment;
 use crate::error::{Error, Result};
 use crate::page::PageOptions;
 use crate::user::User;
-use crate::comment::Comment;
 
 #[derive(Debug)]
 pub enum Filter {

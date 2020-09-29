@@ -7,6 +7,7 @@ use crate::error::Result;
 use crate::page::PageOptions;
 use crate::playlist::Playlists;
 use crate::track::{Track, Tracks};
+use crate::web_profile::WebProfiles;
 use crate::Error;
 
 /// Registered user.
@@ -190,6 +191,30 @@ impl<'a> SingleUserRequestBuilder<'a> {
         Comments::new(self.client.clone(), self.id)
     }
 
+    /// Retrieve all users this user follows
+    ///
+    /// Returns:
+    ///     an instance of Followings
+    pub fn followings(&mut self) -> Followings {
+        Followings::new(self.client.clone(), self.id)
+    }
+
+    /// Retrieve all this user's followers
+    ///
+    /// Returns:
+    ///     an instance of Followers
+    pub fn followers(&mut self) -> Followers {
+        Followers::new(self.client.clone(), self.id)
+    }
+
+    /// Retrieve all this user's web profiles
+    ///
+    /// Returns:
+    ///     an instance of WebProfiles
+    pub fn web_profiles(&mut self) -> WebProfiles {
+        WebProfiles::new(self.client.clone(), self.id)
+    }
+
     /// Retrieve a SoundCloud user
     ///
     /// Returns:
@@ -233,6 +258,76 @@ impl Likes {
 
     /// Return a stream of tracks this user likes limited to the first num_pages pages
     pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
+    }
+}
+
+/// Provides access to operations available for a user's followings
+pub struct Followings {
+    client: Client,
+    user_id: usize,
+}
+
+impl Followings {
+    /// create a new instance of a souncloud user's followings
+    pub fn new(client: Client, user_id: usize) -> Self {
+        Followings { client, user_id }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/users/{}/followings{}", self.user_id, extra)
+    }
+
+    /// Return a stream of all users this user follows
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<User>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of users this user follows limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<User>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
+    }
+}
+
+/// Provides access to operations available for a user's followers
+pub struct Followers {
+    client: Client,
+    user_id: usize,
+}
+
+impl Followers {
+    /// create a new instance of a souncloud user's followers
+    pub fn new(client: Client, user_id: usize) -> Self {
+        Followers { client, user_id }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/users/{}/followers{}", self.user_id, extra)
+    }
+
+    /// Return a stream of all this user's followers
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<User>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of all this user's followers limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<User>> {
         let mut uri = vec![self.path("")];
         if let Some(query) = options.serialize() {
             uri.push(query);
