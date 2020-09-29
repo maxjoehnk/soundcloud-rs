@@ -18,6 +18,7 @@ use crate::client::Client;
 use crate::error::{Error, Result};
 use crate::page::PageOptions;
 use crate::user::User;
+use crate::comment::Comment;
 
 #[derive(Debug)]
 pub enum Filter {
@@ -178,6 +179,30 @@ impl<'a> SingleTrackRequestBuilder<'a> {
     /// Constructs a new track request.
     pub fn new(client: &'a Client, id: usize) -> SingleTrackRequestBuilder {
         SingleTrackRequestBuilder { client, id }
+    }
+
+    /// Retrieve all comments for this track
+    ///
+    /// Returns:
+    ///     an instance of Comments
+    pub fn comments(&mut self) -> Comments {
+        Comments::new(self.client.clone(), self.id)
+    }
+
+    /// Retrieve all tracks related to this track
+    ///
+    /// Returns:
+    ///     an instance of RelatedTracks
+    pub fn related_tracks(&mut self) -> RelatedTracks {
+        RelatedTracks::new(self.client.clone(), self.id)
+    }
+
+    /// Retrieve all soundcloud users that like this track
+    ///
+    /// Returns:
+    ///     an instance of Likers
+    pub fn likers(&mut self) -> Likers {
+        Likers::new(self.client.clone(), self.id)
     }
 
     /// Sends the request and return the tracks.
@@ -366,6 +391,111 @@ impl Tracks {
     }
 
     /// Return a stream of tracks for this user limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
+    }
+}
+
+/// Provides access to operations available for a track's comments
+pub struct Comments {
+    client: Client,
+    track_id: usize,
+}
+
+impl Comments {
+    /// create a new instance of a souncloud track's comments
+    pub fn new(client: Client, track_id: usize) -> Self {
+        Comments { client, track_id }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/tracks/{}/comments{}", self.track_id, extra)
+    }
+
+    /// Return a stream of all comments for this track
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Comment>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of tracks for this user limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Comment>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
+    }
+}
+
+/// Provides access to operations available for a track's comments
+pub struct Likers {
+    client: Client,
+    track_id: usize,
+}
+
+impl Likers {
+    /// create a new instance of a souncloud track's likers
+    pub fn new(client: Client, track_id: usize) -> Self {
+        Likers { client, track_id }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/tracks/{}/favoriters{}", self.track_id, extra)
+    }
+
+    /// Return a stream of all soundcloud users that like this track
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<User>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of soundcloud users that like this track limited to the first num_pages pages
+    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<User>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), num_pages)
+    }
+}
+
+/// Provides access to operations available for a track's related tracks
+pub struct RelatedTracks {
+    client: Client,
+    track_id: usize,
+}
+
+impl RelatedTracks {
+    /// create a new instance of a souncloud track's related tracks
+    pub fn new(client: Client, track_id: usize) -> Self {
+        RelatedTracks { client, track_id }
+    }
+
+    fn path(&self, extra: &str) -> String {
+        format!("/tracks/{}/related{}", self.track_id, extra)
+    }
+
+    /// Return a stream of all tracks related to this track
+    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Track>> {
+        let mut uri = vec![self.path("")];
+        if let Some(query) = options.serialize() {
+            uri.push(query);
+        }
+        self.client.get_stream(&uri.join("?"), u64::MAX)
+    }
+
+    /// Return a stream of tracks related to this track limited to the first num_pages pages
     pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
         let mut uri = vec![self.path("")];
         if let Some(query) = options.serialize() {
