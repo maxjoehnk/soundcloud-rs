@@ -23,14 +23,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use futures::prelude::*;
-use soundcloud::PageOptions;
+use soundcloud::StreamingApiExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let soundcloud_client_id = env!("SOUNDCLOUD_CLIENT_ID");
     let client = soundcloud::Client::new(&soundcloud_client_id);
     let likes = client.user(7466893).likes();
-    let mut tracks = likes.iter(&PageOptions::builder().page_size(10).build());
+    let mut tracks = likes.iter(Default::default());
 
     while let Some(track) = tracks.try_next().await? {
         println!("{} - {}", track.user.username, track.title);

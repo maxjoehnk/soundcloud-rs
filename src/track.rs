@@ -15,10 +15,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::App;
 use crate::client::Client;
-use crate::comment::Comment;
 use crate::error::{Error, Result};
-use crate::page::PageOptions;
 use crate::user::User;
+use crate::streaming_api::StreamingApi;
+use crate::Comments;
 
 #[derive(Debug)]
 pub enum Filter {
@@ -186,7 +186,7 @@ impl<'a> SingleTrackRequestBuilder<'a> {
     /// Returns:
     ///     an instance of Comments
     pub fn comments(&mut self) -> Comments {
-        Comments::new(self.client.clone(), self.id)
+        Comments::track(self.client.clone(), self.id)
     }
 
     /// Retrieve all tracks related to this track
@@ -376,62 +376,17 @@ impl Tracks {
     pub fn new(client: Client, user_id: usize) -> Self {
         Tracks { client, user_id }
     }
-
-    fn path(&self, extra: &str) -> String {
-        format!("/users/{}/tracks{}", self.user_id, extra)
-    }
-
-    /// Return a stream of all tracks for this user
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Track>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of tracks for this user limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
-    }
 }
 
-/// Provides access to operations available for a track's comments
-pub struct Comments {
-    client: Client,
-    track_id: usize,
-}
+impl StreamingApi for Tracks {
+    type Model = Track;
 
-impl Comments {
-    /// create a new instance of a souncloud track's comments
-    pub fn new(client: Client, track_id: usize) -> Self {
-        Comments { client, track_id }
+    fn path(&self) -> String {
+        format!("/users/{}/tracks", self.user_id)
     }
 
-    fn path(&self, extra: &str) -> String {
-        format!("/tracks/{}/comments{}", self.track_id, extra)
-    }
-
-    /// Return a stream of all comments for this track
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Comment>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of tracks for this user limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Comment>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
     }
 }
 
@@ -446,27 +401,17 @@ impl Likers {
     pub fn new(client: Client, track_id: usize) -> Self {
         Likers { client, track_id }
     }
+}
 
-    fn path(&self, extra: &str) -> String {
-        format!("/tracks/{}/favoriters{}", self.track_id, extra)
+impl StreamingApi for Likers {
+    type Model = User;
+
+    fn path(&self) -> String {
+        format!("/tracks/{}/favoriters", self.track_id)
     }
 
-    /// Return a stream of all soundcloud users that like this track
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<User>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of soundcloud users that like this track limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<User>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
     }
 }
 
@@ -481,26 +426,16 @@ impl RelatedTracks {
     pub fn new(client: Client, track_id: usize) -> Self {
         RelatedTracks { client, track_id }
     }
+}
 
-    fn path(&self, extra: &str) -> String {
-        format!("/tracks/{}/related{}", self.track_id, extra)
+impl StreamingApi for RelatedTracks {
+    type Model = Track;
+
+    fn path(&self) -> String {
+        format!("/tracks/{}/related", self.track_id)
     }
 
-    /// Return a stream of all tracks related to this track
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Track>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of tracks related to this track limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
     }
 }

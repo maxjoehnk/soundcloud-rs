@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::client::Client;
 use crate::error::Result;
-use crate::page::PageOptions;
+use crate::streaming_api::{StreamingApi};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub enum WebProfileKind {
@@ -42,26 +42,16 @@ impl WebProfiles {
     pub fn new(client: Client, user_id: usize) -> Self {
         WebProfiles { client, user_id }
     }
+}
 
-    fn path(&self, extra: &str) -> String {
-        format!("/users/{}/web-profiles{}", self.user_id, extra)
+impl StreamingApi for WebProfiles {
+    type Model = WebProfile;
+
+    fn path(&self) -> String {
+        format!("/users/{}/web-profiles", self.user_id)
     }
 
-    /// Return a stream of all web profiles for this user
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<WebProfile>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of web profiles for this user limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<WebProfile>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
     }
 }

@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 use crate::client::Client;
 use crate::comment::Comments;
 use crate::error::Result;
-use crate::page::PageOptions;
 use crate::playlist::Playlists;
 use crate::track::{Track, Tracks};
 use crate::web_profile::WebProfiles;
 use crate::Error;
+use crate::streaming_api::StreamingApi;
 
 /// Registered user.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -188,7 +188,7 @@ impl<'a> SingleUserRequestBuilder<'a> {
     /// Returns:
     ///     an instance of Comments
     pub fn comments(&mut self) -> Comments {
-        Comments::new(self.client.clone(), self.id)
+        Comments::user(self.client.clone(), self.id)
     }
 
     /// Retrieve all users this user follows
@@ -242,27 +242,17 @@ impl Likes {
     pub fn new(client: Client, user_id: usize) -> Self {
         Likes { client, user_id }
     }
+}
 
-    fn path(&self, extra: &str) -> String {
-        format!("/users/{}/favorites{}", self.user_id, extra)
+impl StreamingApi for Likes {
+    type Model = Track;
+
+    fn path(&self) -> String {
+        format!("/users/{}/favorites", self.user_id)
     }
 
-    /// Return a stream of all tracks this user likes
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Track>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of tracks this user likes limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Track>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
     }
 }
 
@@ -277,27 +267,17 @@ impl Followings {
     pub fn new(client: Client, user_id: usize) -> Self {
         Followings { client, user_id }
     }
+}
 
-    fn path(&self, extra: &str) -> String {
-        format!("/users/{}/followings{}", self.user_id, extra)
+impl StreamingApi for Followings {
+    type Model = User;
+
+    fn path(&self) -> String {
+        format!("/users/{}/followings", self.user_id)
     }
 
-    /// Return a stream of all users this user follows
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<User>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of users this user follows limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<User>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
     }
 }
 
@@ -312,26 +292,16 @@ impl Followers {
     pub fn new(client: Client, user_id: usize) -> Self {
         Followers { client, user_id }
     }
+}
 
-    fn path(&self, extra: &str) -> String {
-        format!("/users/{}/followers{}", self.user_id, extra)
+impl StreamingApi for Followers {
+    type Model = User;
+
+    fn path(&self) -> String {
+        format!("/users/{}/followers", self.user_id)
     }
 
-    /// Return a stream of all this user's followers
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<User>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of all this user's followers limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<User>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
     }
 }

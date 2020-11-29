@@ -21,6 +21,7 @@ pub use crate::playlist::*;
 pub use crate::track::*;
 pub use crate::user::*;
 pub use crate::web_profile::*;
+pub use crate::streaming_api::StreamingApiExt;
 
 /// The static host address for the API.
 pub const API_HOST: &str = "https://api.soundcloud.com";
@@ -34,3 +35,4 @@ mod playlist;
 mod track;
 mod user;
 mod web_profile;
+mod streaming_api;

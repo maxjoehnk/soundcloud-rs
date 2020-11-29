@@ -5,14 +5,21 @@ use url::{form_urlencoded, Url};
 
 use crate::error::Result;
 
-#[derive(Default)]
+const DEFAULT_PAGE_SIZE: u32 = 15;
+
 pub struct PageOptions {
     params: HashMap<&'static str, String>,
 }
 
 impl PageOptions {
+    fn new() -> Self {
+        PageOptions {
+            params: Default::default()
+        }
+    }
+
     pub fn builder() -> PageOptionsBuilder {
-        PageOptionsBuilder::default()
+        PageOptionsBuilder::new()
     }
 
     pub fn serialize(&self) -> Option<String> {
@@ -27,11 +34,20 @@ impl PageOptions {
     }
 }
 
+impl Default for PageOptions {
+    fn default() -> Self {
+        Self::builder().page_size(DEFAULT_PAGE_SIZE).build()
+    }
+}
+
 /// a mutable page builder
-#[derive(Default)]
 pub struct PageOptionsBuilder(PageOptions);
 
 impl PageOptionsBuilder {
+    fn new() -> Self {
+        PageOptionsBuilder(PageOptions::new())
+    }
+
     pub fn page_size(&mut self, n: u32) -> &mut Self {
         self.0
             .params

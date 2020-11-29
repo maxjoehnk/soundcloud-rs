@@ -442,6 +442,8 @@ mod tests {
     use url::Url;
 
     use super::*;
+    use crate::{WebProfile, Comment, User};
+    use crate::streaming_api::StreamingApiExt;
 
     fn client() -> Client {
         Client::new(env!("SOUNDCLOUD_CLIENT_ID"))
@@ -491,9 +493,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_track() {
-        let track = client().tracks().id(18201932).get().await.unwrap();
+        let track = client().tracks().id(263801976).get().await.unwrap();
 
-        assert_eq!(track.id, 18201932);
+        assert_eq!(track.id, 263801976);
     }
 
     #[tokio::test]
@@ -575,11 +577,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_first_page_user_tracks() {
-        use crate::page::PageOptions;
-
         let tracks = client().user(7466893).tracks();
         let tracks: Vec<Track> = tracks
-            .get(&PageOptions::builder().page_size(10).build(), 1)
+            .get(Default::default(), 1)
             .try_collect()
             .await
             .unwrap();
@@ -589,15 +589,127 @@ mod tests {
 
     #[tokio::test]
     async fn test_paginate_user_tracks() {
-        use crate::page::PageOptions;
-
         let tracks = client().user(7466893).tracks();
         let tracks: Vec<Track> = tracks
-            .iter(&PageOptions::builder().page_size(10).build())
+            .iter(Default::default())
             .try_collect()
             .await
             .unwrap();
 
         assert!(tracks.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_user_web_profile() {
+        let profiles = client().user(7466893).web_profiles();
+        let profiles: Vec<WebProfile> = profiles
+            .iter(Default::default())
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert!(profiles.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_user_playlists() {
+        let playlists = client().user(7466893).playlists();
+        let playlists: Vec<Playlist> = playlists
+            .iter(Default::default())
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert!(playlists.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_user_comments() {
+        let comments = client().user(7466893).comments();
+        let comments: Vec<Comment> = comments
+            .iter(Default::default())
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert!(comments.len() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_user_followings() {
+        let followings = client().user(7466893).followings();
+        let users: Vec<User> = followings
+            .iter(Default::default())
+            .take(50)
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert_eq!(50, users.len());
+    }
+
+    #[tokio::test]
+    async fn test_user_followers() {
+        let followers = client().user(7466893).followers();
+        let users: Vec<User> = followers
+            .iter(Default::default())
+            .take(50)
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert_eq!(50, users.len());
+    }
+
+    #[tokio::test]
+    async fn test_user_likes() {
+        let likes = client().user(7466893).likes();
+        let tracks: Vec<Track> = likes
+            .iter(Default::default())
+            .take(50)
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert_eq!(50, tracks.len());
+    }
+
+    #[tokio::test]
+    async fn test_track_comments() {
+        let comments = client().track(263801976).comments();
+        let comments: Vec<Comment> = comments
+            .iter(Default::default())
+            .take(50)
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert_eq!(50, comments.len());
+    }
+
+    #[tokio::test]
+    async fn test_track_likers() {
+        let likers = client().track(263801976).likers();
+        let users: Vec<User> = likers
+            .iter(Default::default())
+            .take(50)
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert_eq!(50, users.len());
+    }
+
+    #[tokio::test]
+    async fn test_related_tracks() {
+        let related = client().track(263801976).related_tracks();
+        let tracks: Vec<Track> = related
+            .iter(Default::default())
+            .take(30)
+            .try_collect()
+            .await
+            .unwrap();
+
+        assert_eq!(30, tracks.len());
     }
 }

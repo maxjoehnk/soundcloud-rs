@@ -3,9 +3,9 @@ use serde::Deserialize;
 
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::page::PageOptions;
 use crate::track::Track;
 use crate::user::User;
+use crate::streaming_api::StreamingApi;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -157,31 +157,21 @@ pub struct Playlists {
     user_id: usize,
 }
 
+impl StreamingApi for Playlists {
+    type Model = Playlist;
+
+    fn path(&self) -> String {
+        format!("/users/{}/playlists", self.user_id)
+    }
+
+    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
+        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+    }
+}
+
 impl Playlists {
     /// create a new instance of a souncloud user's playlists
     pub fn new(client: Client, user_id: usize) -> Self {
         Playlists { client, user_id }
-    }
-
-    fn path(&self, extra: &str) -> String {
-        format!("/users/{}/playlists{}", self.user_id, extra)
-    }
-
-    /// Return a stream of all playlists for this user
-    pub fn iter(&self, options: &PageOptions) -> BoxStream<Result<Playlist>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), u64::MAX)
-    }
-
-    /// Return a stream of playlists for this user limited to the first num_pages pages
-    pub fn get(&self, options: &PageOptions, num_pages: u64) -> BoxStream<Result<Playlist>> {
-        let mut uri = vec![self.path("")];
-        if let Some(query) = options.serialize() {
-            uri.push(query);
-        }
-        self.client.get_stream(&uri.join("?"), num_pages)
     }
 }
