@@ -152,8 +152,7 @@ impl Client {
 
         let mut headers = reqwest::header::HeaderMap::new();
 
-        if self.auth_token.is_some() {
-            let token = self.auth_token.clone().unwrap();
+        if let Some(ref token) = self.auth_token {
             headers.insert(
                 reqwest::header::AUTHORIZATION,
                 format!("OAuth {}", token).parse().unwrap(),
