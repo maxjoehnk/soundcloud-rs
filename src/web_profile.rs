@@ -52,6 +52,6 @@ impl StreamingApi for WebProfiles {
     }
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<Result<Self::Model>> {
-        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+        self.client.get_stream(url, pages)
     }
 }

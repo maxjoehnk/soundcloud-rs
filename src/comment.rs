@@ -58,7 +58,7 @@ impl StreamingApi for Comments {
             Comments::Track { client, track_id: _ } => client,
             Comments::User { client, user_id: _ } => client,
         };
-        client.get_stream(url, pages.unwrap_or(u64::MAX))
+        client.get_stream(url, pages)
     }
 }
 

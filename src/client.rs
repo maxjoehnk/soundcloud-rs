@@ -118,11 +118,11 @@ impl Client {
         response.error_for_status().map_err(Error::from)
     }
 
-    pub fn get_stream<T>(&self, path: &str, num_pages: u64) -> BoxStream<Result<T>>
+    pub fn get_stream<T>(&self, path: &str, num_pages: Option<u64>) -> BoxStream<Result<T>>
     where
         T: DeserializeOwned + 'static + Send,
     {
-        unfold(self.clone(), self.get_pages(&path), num_pages)
+        unfold(self.clone(), self.get_pages(&path), num_pages.unwrap_or(u64::MAX))
     }
 
     fn get_pages<T>(&self, path: &str) -> BoxFuture<Result<Page<T>>>

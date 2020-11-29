@@ -252,7 +252,7 @@ impl StreamingApi for Likes {
     }
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+        self.client.get_stream(url, pages)
     }
 }
 
@@ -277,7 +277,7 @@ impl StreamingApi for Followings {
     }
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+        self.client.get_stream(url, pages)
     }
 }
 
@@ -302,6 +302,6 @@ impl StreamingApi for Followers {
     }
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+        self.client.get_stream(url, pages)
     }
 }

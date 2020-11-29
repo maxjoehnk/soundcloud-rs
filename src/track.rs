@@ -386,7 +386,7 @@ impl StreamingApi for Tracks {
     }
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+        self.client.get_stream(url, pages)
     }
 }
 
@@ -411,7 +411,7 @@ impl StreamingApi for Likers {
     }
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+        self.client.get_stream(url, pages)
     }
 }
 
@@ -436,6 +436,6 @@ impl StreamingApi for RelatedTracks {
     }
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages.unwrap_or(u64::MAX))
+        self.client.get_stream(url, pages)
     }
 }
