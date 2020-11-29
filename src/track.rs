@@ -390,7 +390,7 @@ impl StreamingApi for Tracks {
     }
 }
 
-/// Provides access to operations available for a track's comments
+/// Provides access to operations available for a track's likers
 pub struct Likers {
     client: Client,
     track_id: usize,
