@@ -1,63 +1,7 @@
-use futures::stream::BoxStream;
-use serde::{Deserialize, Serialize};
-
-use crate::client::Client;
-use crate::comment::Comments;
-use crate::error::Result;
-use crate::playlist::Playlists;
-use crate::track::{Track, Tracks};
-use crate::web_profile::WebProfiles;
-use crate::Error;
-use crate::streaming_api::StreamingApi;
-
-/// Registered user.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct User {
-    /// Integer ID.
-    pub id: usize,
-    /// Permalink of the resource.
-    pub permalink: String,
-    /// Username.
-    pub username: String,
-    /// API resource URL.
-    pub uri: String,
-    /// URL to the SoundCloud.com page.
-    pub permalink_url: String,
-    /// URL to a JPEG image.
-    pub avatar_url: String,
-    /// Country.
-    pub country: Option<String>,
-    /// First and last name.
-    pub full_name: Option<String>,
-    /// City.
-    pub city: Option<String>,
-    /// Description, written by the user.
-    pub description: Option<String>,
-    /// Discogs name.
-    #[serde(rename = "discogs-name")]
-    pub discogs_name: Option<String>, // discogs-name
-    /// MySpace name.
-    #[serde(rename = "myspace-name")]
-    pub myspace_name: Option<String>, // myspace-name
-    /// URL to a website.
-    pub website: Option<String>,
-    /// Custom title for the website.
-    #[serde(rename = "website-title")]
-    pub website_title: Option<String>, // website-title
-    /// Online status.
-    pub online: Option<bool>,
-    /// Number of public tracks.
-    pub track_count: Option<usize>,
-    /// Number of public playlists.
-    pub playlist_count: Option<usize>,
-    /// Number of followers.
-    pub followers_count: Option<usize>,
-    /// Number of followed users.
-    pub followings_count: Option<usize>,
-    /// Number of favorited public tracks.
-    pub public_favorites_count: Option<usize>,
-    // pub avatar_data …
-}
+use crate::Client;
+use crate::error::{Error, Result};
+use crate::models::User;
+use crate::apis::{Comments, Followers, Followings, Likes, Playlists, Tracks, WebProfiles};
 
 #[derive(Debug)]
 pub struct UserRequestBuilder<'a> {
@@ -82,8 +26,8 @@ impl<'a> UserRequestBuilder<'a> {
 
     /// Sets the search query filter, which will only return tracks with a matching query.
     pub fn query<S>(&'a mut self, query: Option<S>) -> &mut UserRequestBuilder
-    where
-        S: AsRef<str>,
+        where
+            S: AsRef<str>,
     {
         self.query = query.map(|s| s.as_ref().to_owned());
         self
@@ -228,80 +172,5 @@ impl<'a> SingleUserRequestBuilder<'a> {
         let user: User = response.json().await?;
 
         Ok(user)
-    }
-}
-
-/// Provides access to operations available for a user's liked tracks
-pub struct Likes {
-    client: Client,
-    user_id: usize,
-}
-
-impl Likes {
-    /// create a new instance of a souncloud user's likes
-    pub fn new(client: Client, user_id: usize) -> Self {
-        Likes { client, user_id }
-    }
-}
-
-impl StreamingApi for Likes {
-    type Model = Track;
-
-    fn path(&self) -> String {
-        format!("/users/{}/favorites", self.user_id)
-    }
-
-    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages)
-    }
-}
-
-/// Provides access to operations available for a user's followings
-pub struct Followings {
-    client: Client,
-    user_id: usize,
-}
-
-impl Followings {
-    /// create a new instance of a souncloud user's followings
-    pub fn new(client: Client, user_id: usize) -> Self {
-        Followings { client, user_id }
-    }
-}
-
-impl StreamingApi for Followings {
-    type Model = User;
-
-    fn path(&self) -> String {
-        format!("/users/{}/followings", self.user_id)
-    }
-
-    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages)
-    }
-}
-
-/// Provides access to operations available for a user's followers
-pub struct Followers {
-    client: Client,
-    user_id: usize,
-}
-
-impl Followers {
-    /// create a new instance of a souncloud user's followers
-    pub fn new(client: Client, user_id: usize) -> Self {
-        Followers { client, user_id }
-    }
-}
-
-impl StreamingApi for Followers {
-    type Model = User;
-
-    fn path(&self) -> String {
-        format!("/users/{}/followers", self.user_id)
-    }
-
-    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages)
     }
 }

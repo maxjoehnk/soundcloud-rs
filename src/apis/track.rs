@@ -1,24 +1,10 @@
-// Copyright (c) 2016, Mikkel Kroman <mk@uplink.io>
-// All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 use std::fmt;
-use std::str;
+use std::str::FromStr;
 
-use futures::stream::BoxStream;
-use serde::{Deserialize, Serialize};
-
-use crate::app::App;
+use crate::apis::{Comments, RelatedTracks, TrackLikers};
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::user::User;
-use crate::streaming_api::StreamingApi;
-use crate::Comments;
+use crate::models::Track;
 
 #[derive(Debug)]
 pub enum Filter {
@@ -27,7 +13,7 @@ pub enum Filter {
     Private,
 }
 
-impl str::FromStr for Filter {
+impl FromStr for Filter {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Filter> {
@@ -54,105 +40,6 @@ impl Filter {
             Filter::Private => "private",
         }
     }
-}
-
-/// Uploaded track.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Track {
-    /// Integer ID.
-    pub id: u64,
-    /// Time of which the track was uploaded, as an unparsed string.
-    pub created_at: String,
-    /// User ID of the uploader.
-    pub user_id: u64,
-    /// Small representation of the uploaders user.
-    pub user: User,
-    /// Title.
-    pub title: String,
-    /// Permalink of the resource.
-    pub permalink: String,
-    /// URL to the SoundCloud.com page.
-    pub permalink_url: String,
-    /// API resource URL.
-    pub uri: String,
-    /// Sharing status.
-    pub sharing: String,
-    /// Who can embed this track.
-    pub embeddable_by: String,
-    /// External purchase link.
-    pub purchase_url: Option<String>,
-    /// URL to a JPEG image.
-    pub artwork_url: Option<String>,
-    /// HTML description.
-    pub description: Option<String>,
-    /// Representation of a labels user.
-    pub label: Option<serde_json::Value>,
-    /// Duration in milliseconds.
-    pub duration: u64,
-    /// Genre.
-    pub genre: Option<String>,
-    /// List of tags.
-    pub tags: Option<String>,
-    /// Label user ID.
-    pub label_id: Option<u64>,
-    /// Label user name.
-    pub label_name: Option<String>,
-    /// Release number.
-    pub release: Option<String>,
-    /// Day of the release.
-    pub release_day: Option<u64>,
-    /// Month of the release.
-    pub release_month: Option<u64>,
-    /// Year of the release.
-    pub release_year: Option<u64>,
-    /// If the track is available for stream via the API.
-    pub streamable: bool,
-    /// If the track is available for download.
-    pub downloadable: bool,
-    /// Purchase title.
-    pub purchase_title: Option<String>,
-    /// Encoding state.
-    pub state: String,
-    /// Creative common license.
-    pub license: String,
-    /// Track type.
-    pub track_type: Option<String>,
-    /// URL to waveform PNG image.
-    pub waveform_url: String,
-    /// URL to original file.
-    pub download_url: Option<String>,
-    /// URL to 128kbps mp3 stream.
-    pub stream_url: Option<String>,
-    /// External video link.
-    pub video_url: Option<String>,
-    /// Beats per minute.
-    pub bpm: Option<u64>,
-    /// Commentable.
-    pub commentable: bool,
-    /// ISRC.
-    pub isrc: Option<String>,
-    /// Key.
-    pub key_signature: Option<String>,
-    /// Number of comments.
-    pub comment_count: Option<u64>,
-    /// Number of downloads.
-    pub download_count: Option<u64>,
-    /// Number of playbacks.
-    pub playback_count: Option<u64>,
-    /// Number of times favorited.
-    pub favoritings_count: Option<u64>,
-    /// Original upload format.
-    pub original_format: String,
-    /// Original upload size.
-    pub original_content_size: u64,
-    /// Application the track was uploaded with.
-    pub created_with: Option<App>,
-    /// Binary data of the audio file. Only for uploading.
-    pub asset_data: Option<Vec<u8>>,
-    /// Binary data of the artwork image. Only for uploading.
-    pub artwork_data: Option<Vec<u8>>,
-    /// User favorite.
-    pub user_favorite: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -201,8 +88,8 @@ impl<'a> SingleTrackRequestBuilder<'a> {
     ///
     /// Returns:
     ///     an instance of Likers
-    pub fn likers(&mut self) -> Likers {
-        Likers::new(self.client.clone(), self.id)
+    pub fn likers(&mut self) -> TrackLikers {
+        TrackLikers::new(self.client.clone(), self.id)
     }
 
     /// Sends the request and return the tracks.
@@ -237,8 +124,8 @@ impl<'a> TrackRequestBuilder<'a> {
 
     /// Sets the search query filter, which will only return tracks with a matching query.
     pub fn query<S>(&'a mut self, query: Option<S>) -> &mut TrackRequestBuilder
-    where
-        S: AsRef<str>,
+        where
+            S: AsRef<str>,
     {
         self.query = query.map(|s| s.as_ref().to_owned());
         self
@@ -246,9 +133,9 @@ impl<'a> TrackRequestBuilder<'a> {
 
     /// Sets the tags filter, which will only return tracks with a matching tag.
     pub fn tags<I, T>(&'a mut self, tags: Option<I>) -> &mut TrackRequestBuilder
-    where
-        I: AsRef<[T]>,
-        T: AsRef<str>,
+        where
+            I: AsRef<[T]>,
+            T: AsRef<str>,
     {
         self.tags = tags.map(|s| {
             let tags_as_ref: Vec<_> = s.as_ref().iter().map(T::as_ref).collect();
@@ -258,9 +145,9 @@ impl<'a> TrackRequestBuilder<'a> {
     }
 
     pub fn genres<I, T>(&'a mut self, genres: Option<I>) -> &mut TrackRequestBuilder
-    where
-        I: AsRef<[T]>,
-        T: AsRef<str>,
+        where
+            I: AsRef<[T]>,
+            T: AsRef<str>,
     {
         self.genres = genres.map(|s| {
             let genres_as_ref: Vec<_> = s.as_ref().iter().map(T::as_ref).collect();
@@ -356,86 +243,5 @@ impl<'a> TrackRequestBuilder<'a> {
         }
 
         result
-    }
-}
-
-impl PartialEq for Track {
-    fn eq(&self, other: &Track) -> bool {
-        other.id == self.id
-    }
-}
-
-/// Provides access to operations available for a user's tracks
-pub struct Tracks {
-    client: Client,
-    user_id: usize,
-}
-
-impl Tracks {
-    /// create a new instance of a souncloud user's tracks
-    pub fn new(client: Client, user_id: usize) -> Self {
-        Tracks { client, user_id }
-    }
-}
-
-impl StreamingApi for Tracks {
-    type Model = Track;
-
-    fn path(&self) -> String {
-        format!("/users/{}/tracks", self.user_id)
-    }
-
-    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages)
-    }
-}
-
-/// Provides access to operations available for a track's likers
-pub struct Likers {
-    client: Client,
-    track_id: usize,
-}
-
-impl Likers {
-    /// create a new instance of a souncloud track's likers
-    pub fn new(client: Client, track_id: usize) -> Self {
-        Likers { client, track_id }
-    }
-}
-
-impl StreamingApi for Likers {
-    type Model = User;
-
-    fn path(&self) -> String {
-        format!("/tracks/{}/favoriters", self.track_id)
-    }
-
-    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages)
-    }
-}
-
-/// Provides access to operations available for a track's related tracks
-pub struct RelatedTracks {
-    client: Client,
-    track_id: usize,
-}
-
-impl RelatedTracks {
-    /// create a new instance of a souncloud track's related tracks
-    pub fn new(client: Client, track_id: usize) -> Self {
-        RelatedTracks { client, track_id }
-    }
-}
-
-impl StreamingApi for RelatedTracks {
-    type Model = Track;
-
-    fn path(&self) -> String {
-        format!("/tracks/{}/related", self.track_id)
-    }
-
-    fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
-        self.client.get_stream(url, pages)
     }
 }

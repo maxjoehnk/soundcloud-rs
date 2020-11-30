@@ -1,31 +1,9 @@
 use futures::stream::BoxStream;
-use serde::{Deserialize, Serialize};
 
 use crate::client::Client;
 use crate::error::Result;
-use crate::user::User;
 use crate::streaming_api::StreamingApi;
-
-/// User comment.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Comment {
-    /// Integer ID.
-    pub id: usize,
-    /// API resource URL.
-    pub uri: String,
-    /// Time of creation, as an unparsed string.
-    pub created_at: String,
-    /// HTML comment body.
-    pub body: String,
-    /// Associated timestamp in milliseconds.
-    pub timestamp: Option<usize>,
-    /// User ID of the commenter.
-    pub user_id: usize,
-    /// Small representation of the commenters user.
-    pub user: User,
-    /// The track ID of the related track.
-    pub track_id: usize,
-}
+use crate::models::Comment;
 
 /// Provides access to operations available for comments
 pub enum Comments {

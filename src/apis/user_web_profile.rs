@@ -1,35 +1,9 @@
-// Copyright (c) 2020
-// All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 use futures::stream::BoxStream;
-use serde::Deserialize;
 
 use crate::client::Client;
 use crate::error::Result;
 use crate::streaming_api::{StreamingApi};
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub enum WebProfileKind {
-    #[serde(rename = "web-profile")]
-    WebProfile,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct WebProfile {
-    pub kind: WebProfileKind,
-    pub id: usize,
-    pub service: String,
-    pub title: String,
-    pub url: String,
-    pub username: Option<String>,
-    pub created_at: String,
-}
+use crate::models::WebProfile;
 
 /// Provides access to operations available for a user's web profiles
 pub struct WebProfiles {
