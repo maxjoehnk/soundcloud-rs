@@ -1,9 +1,9 @@
-use crate::PageOptions;
 use crate::error::Result;
+use crate::PageOptions;
 use futures::stream::BoxStream;
 use serde::de::DeserializeOwned;
 
-pub trait StreamingApiExt : StreamingApi {
+pub trait StreamingApiExt: StreamingApi {
     /// Return a stream of all [`StreamingApi::Model`].
     fn iter(&self, options: PageOptions) -> BoxStream<Result<Self::Model>> {
         self.fetch(&options, None)
@@ -15,21 +15,24 @@ pub trait StreamingApiExt : StreamingApi {
     }
 }
 
-impl<T: ?Sized> StreamingApiExt for T where T: StreamingApi {
-}
+impl<T: ?Sized> StreamingApiExt for T where T: StreamingApi {}
 
 pub trait StreamingApi {
-    type Model : DeserializeOwned;
+    type Model: DeserializeOwned;
 
     fn path(&self) -> String;
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<Result<Self::Model>>;
 
-    fn fetch(&self, options: &PageOptions, num_pages: Option<u64>) -> BoxStream<Result<Self::Model>> {
+    fn fetch(
+        &self,
+        options: &PageOptions,
+        num_pages: Option<u64>,
+    ) -> BoxStream<Result<Self::Model>> {
         let url = self.path();
         let url = if let Some(params) = options.serialize() {
             format!("{}?{}", url, params)
-        }else {
+        } else {
             url
         };
         self.get_stream(&url, num_pages)

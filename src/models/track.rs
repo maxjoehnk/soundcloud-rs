@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::models::{App, User};
+use serde::{Deserialize, Serialize};
 
 /// Uploaded track.
 #[derive(Serialize, Deserialize, Debug, Clone)]

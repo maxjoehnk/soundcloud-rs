@@ -1,7 +1,7 @@
-use crate::Client;
+use crate::apis::{Comments, Followers, Followings, Likes, Playlists, Tracks, WebProfiles};
 use crate::error::{Error, Result};
 use crate::models::User;
-use crate::apis::{Comments, Followers, Followings, Likes, Playlists, Tracks, WebProfiles};
+use crate::Client;
 
 #[derive(Debug)]
 pub struct UserRequestBuilder<'a> {
@@ -26,8 +26,8 @@ impl<'a> UserRequestBuilder<'a> {
 
     /// Sets the search query filter, which will only return tracks with a matching query.
     pub fn query<S>(&'a mut self, query: Option<S>) -> &mut UserRequestBuilder
-        where
-            S: AsRef<str>,
+    where
+        S: AsRef<str>,
     {
         self.query = query.map(|s| s.as_ref().to_owned());
         self

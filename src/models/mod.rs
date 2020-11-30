@@ -5,9 +5,9 @@ pub use self::track::*;
 pub use self::user::*;
 pub use self::web_profile::*;
 
-mod user;
+mod app;
 mod comment;
 mod playlist;
 mod track;
+mod user;
 mod web_profile;
-mod app;

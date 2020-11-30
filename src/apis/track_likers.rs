@@ -1,9 +1,9 @@
 use futures::stream::BoxStream;
 
-use crate::Client;
-use crate::models::User;
 use crate::error::Result;
+use crate::models::User;
 use crate::streaming_api::StreamingApi;
+use crate::Client;
 
 /// Provides access to operations available for a track's likers
 pub struct TrackLikers {

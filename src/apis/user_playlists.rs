@@ -1,9 +1,9 @@
 use futures::stream::BoxStream;
 
-use crate::Client;
 use crate::error::Result;
-use crate::streaming_api::StreamingApi;
 use crate::models::Playlist;
+use crate::streaming_api::StreamingApi;
+use crate::Client;
 
 /// Provides access to operations available for a user's playlists
 pub struct Playlists {

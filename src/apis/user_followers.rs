@@ -1,9 +1,9 @@
 use futures::stream::BoxStream;
 
-use crate::Client;
 use crate::error::Result;
-use crate::streaming_api::StreamingApi;
 use crate::models::User;
+use crate::streaming_api::StreamingApi;
+use crate::Client;
 
 /// Provides access to operations available for a user's followers
 pub struct Followers {

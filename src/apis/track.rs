@@ -124,8 +124,8 @@ impl<'a> TrackRequestBuilder<'a> {
 
     /// Sets the search query filter, which will only return tracks with a matching query.
     pub fn query<S>(&'a mut self, query: Option<S>) -> &mut TrackRequestBuilder
-        where
-            S: AsRef<str>,
+    where
+        S: AsRef<str>,
     {
         self.query = query.map(|s| s.as_ref().to_owned());
         self
@@ -133,9 +133,9 @@ impl<'a> TrackRequestBuilder<'a> {
 
     /// Sets the tags filter, which will only return tracks with a matching tag.
     pub fn tags<I, T>(&'a mut self, tags: Option<I>) -> &mut TrackRequestBuilder
-        where
-            I: AsRef<[T]>,
-            T: AsRef<str>,
+    where
+        I: AsRef<[T]>,
+        T: AsRef<str>,
     {
         self.tags = tags.map(|s| {
             let tags_as_ref: Vec<_> = s.as_ref().iter().map(T::as_ref).collect();
@@ -145,9 +145,9 @@ impl<'a> TrackRequestBuilder<'a> {
     }
 
     pub fn genres<I, T>(&'a mut self, genres: Option<I>) -> &mut TrackRequestBuilder
-        where
-            I: AsRef<[T]>,
-            T: AsRef<str>,
+    where
+        I: AsRef<[T]>,
+        T: AsRef<str>,
     {
         self.genres = genres.map(|s| {
             let genres_as_ref: Vec<_> = s.as_ref().iter().map(T::as_ref).collect();

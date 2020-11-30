@@ -38,7 +38,7 @@ async fn test_resolve_track() {
             "https://api.soundcloud.com/tracks/330733497?client_id={}",
             env!("SOUNDCLOUD_CLIENT_ID")
         ))
-            .unwrap()
+        .unwrap()
     );
 }
 
@@ -148,11 +148,7 @@ async fn test_get_first_page_user_tracks() {
 #[tokio::test]
 async fn test_paginate_user_tracks() {
     let tracks = client().user(7466893).tracks();
-    let tracks: Vec<Track> = tracks
-        .iter(Default::default())
-        .try_collect()
-        .await
-        .unwrap();
+    let tracks: Vec<Track> = tracks.iter(Default::default()).try_collect().await.unwrap();
 
     assert!(tracks.len() > 0);
 }

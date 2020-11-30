@@ -1,9 +1,9 @@
 use futures::stream::BoxStream;
 
-use crate::Client;
 use crate::error::Result;
 use crate::models::Track;
 use crate::streaming_api::StreamingApi;
+use crate::Client;
 
 /// Provides access to operations available for a track's related tracks
 pub struct RelatedTracks {

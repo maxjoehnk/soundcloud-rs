@@ -2,8 +2,8 @@ use futures::stream::BoxStream;
 
 use crate::client::Client;
 use crate::error::Result;
-use crate::streaming_api::{StreamingApi};
 use crate::models::WebProfile;
+use crate::streaming_api::StreamingApi;
 
 /// Provides access to operations available for a user's web profiles
 pub struct WebProfiles {

@@ -7,10 +7,13 @@ use futures::stream::{BoxStream, TryStreamExt};
 use serde::de::DeserializeOwned;
 use url::Url;
 
+use crate::apis::{
+    PlaylistRequestBuilder, SinglePlaylistRequestBuilder, SingleTrackRequestBuilder,
+    SingleUserRequestBuilder, TrackRequestBuilder, UserRequestBuilder,
+};
 use crate::error::{Error, Result};
+use crate::models::{Playlist, Track};
 use crate::page::Page;
-use crate::apis::{PlaylistRequestBuilder, SinglePlaylistRequestBuilder, SingleTrackRequestBuilder, TrackRequestBuilder, SingleUserRequestBuilder, UserRequestBuilder};
-use crate::models::{Track, Playlist};
 
 #[derive(Clone, Debug)]
 pub struct Client {
@@ -112,7 +115,11 @@ impl Client {
     where
         T: DeserializeOwned + 'static + Send,
     {
-        unfold(self.clone(), self.get_pages(&path), num_pages.unwrap_or(u64::MAX))
+        unfold(
+            self.clone(),
+            self.get_pages(&path),
+            num_pages.unwrap_or(u64::MAX),
+        )
     }
 
     fn get_pages<T>(&self, path: &str) -> BoxFuture<Result<Page<T>>>

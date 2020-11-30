@@ -2,19 +2,13 @@ use futures::stream::BoxStream;
 
 use crate::client::Client;
 use crate::error::Result;
-use crate::streaming_api::StreamingApi;
 use crate::models::Comment;
+use crate::streaming_api::StreamingApi;
 
 /// Provides access to operations available for comments
 pub enum Comments {
-    User {
-        client: Client,
-        user_id: usize,
-    },
-    Track {
-        client: Client,
-        track_id: usize,
-    }
+    User { client: Client, user_id: usize },
+    Track { client: Client, track_id: usize },
 }
 
 impl StreamingApi for Comments {
@@ -22,9 +16,12 @@ impl StreamingApi for Comments {
 
     fn path(&self) -> String {
         match self {
-            Comments::Track { client: _, track_id } => {
+            Comments::Track {
+                client: _,
+                track_id,
+            } => {
                 format!("/tracks/{}/comments", track_id)
-            },
+            }
             Comments::User { client: _, user_id } => {
                 format!("/users/{}/comments", user_id)
             }
@@ -33,7 +30,10 @@ impl StreamingApi for Comments {
 
     fn get_stream(&self, url: &str, pages: Option<u64>) -> BoxStream<'_, Result<Self::Model>> {
         let client = match self {
-            Comments::Track { client, track_id: _ } => client,
+            Comments::Track {
+                client,
+                track_id: _,
+            } => client,
             Comments::User { client, user_id: _ } => client,
         };
         client.get_stream(url, pages)

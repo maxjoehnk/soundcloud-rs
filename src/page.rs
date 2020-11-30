@@ -14,7 +14,7 @@ pub struct PageOptions {
 impl PageOptions {
     fn new() -> Self {
         PageOptions {
-            params: Default::default()
+            params: Default::default(),
         }
     }
 
