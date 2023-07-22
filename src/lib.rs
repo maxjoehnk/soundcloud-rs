@@ -12,7 +12,7 @@ pub use crate::page::PageOptions;
 pub use crate::streaming_api::StreamingApiExt;
 
 /// The static host address for the API.
-pub const API_HOST: &str = "https://api.soundcloud.com";
+pub const API_HOST: &str = "https://api-v2.soundcloud.com";
 
 mod apis;
 mod client;
